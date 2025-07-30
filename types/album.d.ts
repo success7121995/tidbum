@@ -4,4 +4,5 @@ export interface Album {
     description?: string;
     cover_asset_id?: string;
     parent_album_id?: string;
+    totalAssets?: number;
 }

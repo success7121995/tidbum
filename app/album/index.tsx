@@ -1,20 +1,54 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
-import { router } from "expo-router";
-import { useEffect } from "react";
-import { TouchableOpacity, View } from "react-native";
-import { initDb } from "../../lib/db";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import { Dimensions, FlatList, TouchableOpacity, View } from "react-native";
+import AlbumCard from "../../components/AlbumCard";
+import { getTopLevelAlbums, initDb } from "../../lib/db";
+import { Album } from "../../types/album";
 
 const HomeScreen = () => {
+    // ============================================================================
+    // STATE
+    // ============================================================================
+    const [albums, setAlbums] = useState<(Album & { totalAssets: number })[]>([]);
+    const { width } = Dimensions.get('window');
     
-    useEffect(() => {
-        (async () => {
-            await initDb();
-        })();
-    }, []);
+    // Determine albums per row based on screen width
+    const isTablet = width >= 768; // iPad breakpoint
+    const albumsPerRow = isTablet ? 5 : 3;
+
+    // ============================================================================
+    // HANDLERS
+    // ============================================================================
+
+    /**
+     * Fetch albums
+     */
+    useFocusEffect(
+        useCallback(() => {
+            (async () => {
+                await initDb();
+                const albums = await getTopLevelAlbums();
+                setAlbums(albums);
+            })();
+        }, [])
+    );
+
+    // ============================================================================
+    // RENDERERS
+    // ============================================================================
+
+    /**
+     * Render album card
+     */
+    const renderAlbumCard = ({ item }: { item: Album & { totalAssets: number } }) => (
+        <View className={`${isTablet ? 'w-1/5' : 'w-1/3'} px-1 mb-4`}>
+            <AlbumCard album={item} />
+        </View>
+    );
 
     return (
         <View className="bg-white flex-1">
-
             {/* Header bar */}
             <View className="flex-row justify-end items-center px-4 py-2">
                 <TouchableOpacity onPress={() => router.push('/album/create')}>
@@ -22,6 +56,21 @@ const HomeScreen = () => {
                 </TouchableOpacity>
             </View>
 
+            {/* Album grid */}
+            <View className="flex-1 px-4 py-4">
+                <FlatList
+                    data={albums}
+                    renderItem={renderAlbumCard}
+                    keyExtractor={(item) => item.album_id || ''}
+                    numColumns={albumsPerRow}
+                    columnWrapperStyle={{ 
+                        justifyContent: 'space-between',
+                        marginBottom: 16
+                    }}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 20 }}
+                />
+            </View>
         </View>
     );
 };

@@ -1,7 +1,7 @@
 # TidBum - Expo React Native Project
 
 ## Project Overview
-TidBum is a React Native application built with Expo SDK 53, featuring a modern tech stack with TypeScript, Tailwind CSS (via NativeWind), and various React Native libraries for enhanced functionality. The app focuses on media library management with automatic permission handling, iOS settings integration, streamlined album creation forms with validation, and a robust local SQLite database for data persistence.
+TidBum is a React Native application built with Expo SDK 53, featuring a modern tech stack with TypeScript, Tailwind CSS (via NativeWind), and various React Native libraries for enhanced functionality. The app focuses on media library management with automatic permission handling, iOS settings integration, streamlined album creation forms with validation, a robust local SQLite database for data persistence, and a responsive grid-based album gallery interface. The codebase follows a well-organized structure with clear separation of concerns and consistent code organization patterns.
 
 ## Tech Stack
 
@@ -55,15 +55,19 @@ tidbum/
 │   ├── index.tsx          # Home page with permission handling
 │   └── album/             # Album-related pages
 │       ├── _layout.tsx    # Album layout
-│       ├── index.tsx      # Album list page
-│       └── create.tsx     # Album creation form
+│       ├── index.tsx      # Album list page with responsive grid
+│       ├── create.tsx     # Album creation form
+│       └── [album_id]/    # Dynamic album routes
+│           ├── _layout.tsx # Album detail layout
+│           └── index.tsx   # Album detail page
 ├── lib/                   # Utility libraries
 │   ├── db.ts             # SQLite database operations and schema
 │   ├── media.ts          # Media library utilities and permission handling
 │   └── schema.ts         # Zod schemas for form validation
 ├── types/                 # TypeScript type definitions
-│   └── album.ts          # Album interface definitions
+│   └── album.d.ts        # Album interface definitions
 ├── components/            # Reusable components
+│   ├── AlbumCard.tsx     # Responsive album card with navigation
 │   └── AlbumForm.tsx     # Reusable album creation form
 ├── assets/                # Static assets (images, fonts)
 │   ├── fonts/
@@ -78,6 +82,139 @@ tidbum/
 ├── global.css            # Global CSS with Tailwind directives
 ├── package.json          # Dependencies and scripts
 └── tsconfig.json         # TypeScript configuration
+```
+
+## Code Organization Structure
+
+### File-Level Organization Pattern
+The project follows a consistent code organization pattern across all files:
+
+```typescript
+// ============================================================================
+// IMPORTS
+// ============================================================================
+import React from 'react';
+import { View, Text } from 'react-native';
+
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
+interface ComponentProps {
+    // props definition
+}
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+const CONSTANTS = {
+    // app-wide constants
+};
+
+// ============================================================================
+// UTILITIES & HELPERS
+// ============================================================================
+const helperFunction = () => {
+    // helper functions
+};
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+const Component = ({ props }: ComponentProps) => {
+    // ============================================================================
+    // STATE & REFS
+    // ============================================================================
+    const [state, setState] = useState();
+    const ref = useRef();
+
+    // ============================================================================
+    // EFFECTS
+    // ============================================================================
+    useEffect(() => {
+        // side effects
+    }, []);
+
+    // ============================================================================
+    // HANDLERS & CALLBACKS
+    // ============================================================================
+    const handlePress = () => {
+        // event handlers
+    };
+
+    // ============================================================================
+    // RENDERERS
+    // ============================================================================
+    const renderItem = () => {
+        // render functions
+    };
+
+    // ============================================================================
+    // MAIN RENDER
+    // ============================================================================
+    return (
+        <View>
+            {/* JSX */}
+        </View>
+    );
+};
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+export default Component;
+```
+
+### Current File Organization Status
+
+#### ✅ **Well-Organized Files**
+- **`app/album/index.tsx`**: Follows the pattern with STATE, HANDLERS, RENDERERS sections
+- **`components/AlbumCard.tsx`**: Organized with HANDLERS and RENDERERS sections
+- **`lib/db.ts`**: Structured with DATABASE INITIALIZATION, ALBUM OPERATIONS, ASSET OPERATIONS sections
+
+#### 🔄 **Files Needing Organization**
+- **`app/index.tsx`**: Home page with permission handling
+- **`app/album/create.tsx`**: Album creation form
+- **`app/album/[album_id]/index.tsx`**: Album detail page
+- **`components/AlbumForm.tsx`**: Album form component
+- **`lib/media.ts`**: Media library utilities
+- **`lib/schema.ts`**: Validation schemas
+
+### Recommended Project-Level Organization
+
+```
+tidbum/
+├── app/                          # Expo Router pages
+│   ├── _layout.tsx              # Root layout
+│   ├── index.tsx                # Home page
+│   └── album/                   # Album feature
+│       ├── _layout.tsx          # Album layout
+│       ├── index.tsx            # Album list (✅ organized)
+│       ├── create.tsx           # Album creation
+│       └── [album_id]/          # Dynamic album routes
+│           ├── _layout.tsx      # Album detail layout
+│           └── index.tsx        # Album detail page
+├── components/                   # Reusable components
+│   ├── AlbumCard.tsx            # Album card (✅ organized)
+│   └── AlbumForm.tsx            # Album form
+├── lib/                         # Utility libraries
+│   ├── db.ts                    # Database operations (✅ organized)
+│   ├── media.ts                 # Media utilities
+│   └── schema.ts                # Validation schemas
+├── types/                       # TypeScript definitions
+│   └── album.d.ts               # Album types
+├── hooks/                       # Custom React hooks (planned)
+│   ├── useAlbums.ts             # Album-related hooks
+│   └── useMedia.ts              # Media-related hooks
+├── stores/                      # State management (planned)
+│   ├── albumStore.ts            # Album state
+│   └── mediaStore.ts            # Media state
+├── utils/                       # Utility functions (planned)
+│   ├── constants.ts             # App constants
+│   ├── helpers.ts               # Helper functions
+│   └── validators.ts            # Validation utilities
+└── assets/                      # Static assets
+    ├── images/
+    └── fonts/
 ```
 
 ## Configuration Files
@@ -180,6 +317,8 @@ module.exports = {
 - React Hook Form with Zod validation for forms
 - SQLite database with prepared statements for security
 - React Native UUID for secure unique identifier generation
+- Responsive grid layout for album gallery
+- **Consistent code organization pattern across files**
 
 ### Recent Fixes & Improvements
 - Resolved Watchman permission issues on macOS
@@ -200,8 +339,22 @@ module.exports = {
 - **Added database initialization and table creation**
 - **Fixed UNIQUE constraint issues with proper UUID generation**
 - **Added debugging logs for album creation process**
+- **Implemented responsive grid layout for album gallery**
+- **Redesigned AlbumCard component with modern UI**
+- **Added precise navigation controls (cover photo only)**
+- **Implemented asset counting with sub-album support**
+- **Established consistent code organization pattern**
+- **Organized key files with clear section separation**
 
 ## Key Features
+
+### Code Organization & Architecture
+- **Consistent File Structure**: All files follow the same organization pattern
+- **Clear Section Separation**: Imports, Types, Constants, State, Effects, Handlers, Renderers
+- **Scalable Architecture**: Easy to maintain and extend as project grows
+- **Type Safety**: Proper TypeScript integration throughout
+- **Modular Components**: Reusable components with clear responsibilities
+- **Separation of Concerns**: Database, UI, and business logic properly separated
 
 ### Database Management
 - **SQLite Integration**: Local database with expo-sqlite for data persistence
@@ -212,6 +365,7 @@ module.exports = {
 - **Resource Management**: Proper statement finalization and connection handling
 - **UUID Generation**: Secure unique identifier generation using react-native-uuid
 - **Debug Logging**: Console logging for debugging album creation process
+- **Asset Counting**: Recursive asset counting including sub-albums
 
 ### Media Library Management
 - **Automatic Permission Handling**: Prompts for media library access on first app launch
@@ -234,6 +388,9 @@ module.exports = {
 - **Responsive Layout**: Optimized for different screen sizes
 - **Accessibility**: Proper contrast, readable fonts, and touch targets
 - **Keyboard Handling**: Proper keyboard avoidance and input management
+- **Responsive Grid**: Adaptive layout (3 columns on iPhone, 5 on iPad)
+- **Precise Navigation**: Cover photo only clickable for album navigation
+- **Modern Card Design**: Rounded corners, shadows, and proper spacing
 
 ### Technical Features
 - **File-based routing with Expo Router**
@@ -246,6 +403,8 @@ module.exports = {
 - **Media handling (audio, video, images)**
 - **Cross-platform (iOS, Android, Web)**
 - **UUID generation for unique identifiers**
+- **Responsive grid layout system**
+- **Consistent code organization pattern**
 
 ## Database Implementation
 
@@ -255,6 +414,7 @@ module.exports = {
 - `closeDb()`: Close database connection
 - `createAlbum()`: Create new album with UUID generation and debugging logs
 - `getAlbumById()`: Retrieve album by ID
+- `getTopLevelAlbums()`: Get top-level albums with asset counts
 - `getAllAlbums()`: Get all albums
 - `updateAlbum()`: Update album details
 - `deleteAlbum()`: Delete album and related assets
@@ -263,6 +423,8 @@ module.exports = {
 - `updateAssetOrder()`: Reorder assets within albums
 - `setAlbumCover()`: Set album cover image
 - `getAlbumStats()`: Get album statistics and counts
+- `getAlbumTotalAssetCount()`: Count assets including sub-albums
+- `getAllSubAlbumIds()`: Recursively get sub-album IDs
 
 ### Database Schema
 - **Album Table**: Stores album information with hierarchical support
@@ -286,6 +448,29 @@ module.exports = {
 - **Type Safety**: ✅ Full TypeScript integration
 - **Error Handling**: ✅ Comprehensive error management
 - **Debug Logging**: ✅ Console logs for troubleshooting
+- **Asset Counting**: ✅ Recursive counting with sub-album support
+- **Album Retrieval**: ✅ Top-level albums with asset counts
+- **Code Organization**: ✅ Consistent structure in database files
+
+## UI Components
+
+### AlbumCard Component (`components/AlbumCard.tsx`)
+- **Responsive Design**: Adapts to different screen sizes
+- **Cover Photo Display**: Shows album cover with fallback placeholder
+- **Precise Navigation**: Only cover photo is clickable for navigation
+- **Menu Integration**: Separate menu icon for album actions
+- **Asset Count Display**: Shows total assets with proper pluralization
+- **Modern Styling**: Rounded corners, shadows, and clean typography
+- **Type Safety**: Full TypeScript integration with optional totalAssets
+- **Code Organization**: ✅ Well-structured with HANDLERS and RENDERERS sections
+
+### Responsive Grid Layout
+- **iPhone Layout**: 3 albums per row using `w-1/3`
+- **iPad Layout**: 5 albums per row using `w-1/5`
+- **Breakpoint Detection**: 768px width for tablet detection
+- **Flexible Spacing**: Proper padding and margins for grid items
+- **FlatList Integration**: Efficient rendering for large album lists
+- **Tailwind Classes**: Pure Tailwind implementation for responsive design
 
 ## Media Library Implementation
 
@@ -340,6 +525,8 @@ module.exports = {
 7. Form validation provides real-time feedback
 8. Database automatically initializes on first app launch
 9. Debug logs help troubleshoot database operations
+10. Responsive grid adapts to device screen size
+11. **Consistent code organization pattern for maintainability**
 
 ## Recent Updates
 - **Automatic Permission Prompting**: App now automatically requests media library access on first launch
@@ -360,3 +547,12 @@ module.exports = {
 - **Resource Management**: Proper database connection and statement handling
 - **Debug Logging**: Added console logs for troubleshooting album creation
 - **UNIQUE Constraint Fixes**: Resolved database constraint violations with proper UUID generation
+- **Responsive Grid Layout**: Implemented adaptive grid (3 columns iPhone, 5 columns iPad)
+- **AlbumCard Redesign**: Modern card design with cover photo navigation
+- **Precise Navigation**: Cover photo only clickable for better UX
+- **Asset Counting**: Recursive asset counting including sub-albums
+- **Modern UI Components**: Rounded corners, shadows, and clean typography
+- **Tailwind Integration**: Pure Tailwind classes for responsive design
+- **Code Organization Structure**: Established consistent file organization pattern
+- **Section Separation**: Clear separation of imports, types, state, handlers, and renderers
+- **Maintainable Architecture**: Scalable code structure for team development

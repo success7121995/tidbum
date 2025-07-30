@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import AlbumForm from '../../components/AlbumForm';
@@ -6,8 +6,15 @@ import { createAlbum } from '../../lib/db';
 import { CreateAlbumFormData } from '../../lib/schema';
 
 const CreateAlbumScreen = () => {
-	const router = useRouter();
+	// ============================================================================
+	// STATE
+	// ============================================================================
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+
+	// ============================================================================
+	// HANDLERS
+	// ============================================================================
 
     /**
      * Handle form submission
@@ -47,6 +54,9 @@ const CreateAlbumScreen = () => {
 		router.back();
 	};
 
+	// ============================================================================
+	// RENDERERS
+	// ============================================================================
 	return (
 		<View className="flex-1 bg-white">
 			<ScrollView className="flex-1 px-6 py-6">
