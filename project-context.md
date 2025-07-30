@@ -1,7 +1,7 @@
 # TidBum - Expo React Native Project
 
 ## Project Overview
-TidBum is a React Native application built with Expo SDK 53, featuring a modern tech stack with TypeScript, Tailwind CSS (via NativeWind), and various React Native libraries for enhanced functionality. The app focuses on media library management with automatic permission handling and iOS settings integration.
+TidBum is a React Native application built with Expo SDK 53, featuring a modern tech stack with TypeScript, Tailwind CSS (via NativeWind), and various React Native libraries for enhanced functionality. The app focuses on media library management with automatic permission handling, iOS settings integration, and streamlined album creation forms with validation.
 
 ## Tech Stack
 
@@ -26,8 +26,9 @@ TidBum is a React Native application built with Expo SDK 53, featuring a modern 
 
 ### State Management & Data
 - **Zustand**: ^5.0.6 (State management)
-- **React Hook Form**: ^7.61.1 (Form handling)
+- **React Hook Form**: ^7.61.1 (Form handling with validation)
 - **Zod**: ^4.0.13 (Schema validation)
+- **@hookform/resolvers**: ^5.2.1 (Zod integration with React Hook Form)
 - **Expo SQLite**: ~15.2.14 (Local database)
 - **AsyncStorage**: ^2.2.0 (Local storage)
 
@@ -50,10 +51,14 @@ TidBum is a React Native application built with Expo SDK 53, featuring a modern 
 tidbum/
 ├── app/                    # Expo Router pages (file-based routing)
 │   ├── _layout.tsx        # Root layout
-│   └── index.tsx          # Home page with permission handling
+│   ├── index.tsx          # Home page with permission handling
+│   └── album/             # Album-related pages
+│       └── create.tsx     # Album creation form
 ├── lib/                   # Utility libraries
-│   └── media.ts          # Media library utilities and permission handling
+│   ├── media.ts          # Media library utilities and permission handling
+│   └── schema.ts         # Zod schemas for form validation
 ├── components/            # Reusable components
+│   └── AlbumForm.tsx     # Reusable album creation form
 ├── assets/                # Static assets (images, fonts)
 │   ├── fonts/
 │   └── images/
@@ -166,6 +171,7 @@ module.exports = {
 - Metro bundler configured for various asset types
 - TypeScript strict mode enabled
 - Media library permissions configured in app.json
+- React Hook Form with Zod validation for forms
 
 ### Recent Fixes & Improvements
 - Resolved Watchman permission issues on macOS
@@ -176,6 +182,9 @@ module.exports = {
 - Added iOS Settings integration with expo-linking
 - Created automatic permission prompting on first app launch
 - Converted UI to use Tailwind CSS classes
+- Implemented simplified album creation forms with React Hook Form and Zod validation
+- Created reusable form components for better code organization
+- Fixed TypeScript type issues with form validation schemas
 
 ## Key Features
 
@@ -186,11 +195,20 @@ module.exports = {
 - **User-Friendly UI**: Step-by-step instructions for enabling permissions
 - **Error Handling**: Graceful fallbacks and user-friendly error messages
 
+### Form Management & Validation
+- **React Hook Form Integration**: Efficient form state management
+- **Zod Schema Validation**: Type-safe form validation with detailed error messages
+- **Reusable Form Components**: Modular form components for consistency
+- **Real-time Validation**: Instant feedback on form input
+- **Simplified Interface**: Clean, focused forms with essential fields only
+- **Type Safety**: Proper TypeScript integration with form validation
+
 ### UI/UX Features
 - **Modern Design**: Clean, accessible interface using Tailwind CSS
-- **Loading States**: Proper feedback during permission requests
+- **Loading States**: Proper feedback during form submission and permission requests
 - **Responsive Layout**: Optimized for different screen sizes
 - **Accessibility**: Proper contrast, readable fonts, and touch targets
+- **Keyboard Handling**: Proper keyboard avoidance and input management
 
 ### Technical Features
 - **File-based routing with Expo Router**
@@ -223,6 +241,29 @@ module.exports = {
 - Fallback to general settings if app-specific settings unavailable
 - User-friendly error handling with manual instructions
 
+## Form Implementation
+
+### Schema Validation (`lib/schema.ts`)
+- `albumSchema`: Simplified album creation form validation
+- `createAlbumSchema`: Extended album creation validation
+- `albumSearchSchema`: Album search and filter validation
+- Type-safe form data interfaces with proper TypeScript integration
+
+### Form Components
+- `AlbumForm`: Reusable album creation form component
+- Real-time validation with error messages
+- Simplified interface with essential fields only
+- Loading states and submission handling
+- Proper TypeScript type safety
+
+### Form Features
+- **Required Fields**: Name validation with character limits
+- **Optional Fields**: Description with character limit
+- **Real-time Validation**: Instant feedback on form input
+- **Error Handling**: User-friendly error messages
+- **Type Safety**: Full TypeScript integration
+- **Clean UI**: Minimal, focused interface
+
 ## Development Workflow
 1. Use `npx expo start` to start development server
 2. Scan QR code with Expo Go app or use simulators
@@ -230,6 +271,7 @@ module.exports = {
 4. TypeScript provides compile-time error checking
 5. ESLint ensures code quality
 6. Media library permissions automatically handled on first launch
+7. Form validation provides real-time feedback
 
 ## Recent Updates
 - **Automatic Permission Prompting**: App now automatically requests media library access on first launch
@@ -237,3 +279,8 @@ module.exports = {
 - **Tailwind CSS Implementation**: Converted all UI components to use Tailwind classes
 - **iOS Settings Integration**: Direct link to app settings for permission management
 - **Enhanced Error Handling**: Comprehensive error handling with user-friendly messages
+- **Simplified Album Forms**: Streamlined form system with React Hook Form and Zod validation
+- **Reusable Components**: Modular form components for better code organization
+- **Schema Validation**: Type-safe form validation with detailed error messages
+- **TypeScript Fixes**: Resolved type issues with form validation schemas
+- **Clean Architecture**: Simplified form structure focusing on essential fields
