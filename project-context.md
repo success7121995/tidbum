@@ -1,7 +1,7 @@
 # TidBum - Expo React Native Project
 
 ## Project Overview
-TidBum is a React Native application built with Expo SDK 53, featuring a modern tech stack with TypeScript, Tailwind CSS (via NativeWind), and various React Native libraries for enhanced functionality.
+TidBum is a React Native application built with Expo SDK 53, featuring a modern tech stack with TypeScript, Tailwind CSS (via NativeWind), and various React Native libraries for enhanced functionality. The app focuses on media library management with automatic permission handling and iOS settings integration.
 
 ## Tech Stack
 
@@ -33,8 +33,9 @@ TidBum is a React Native application built with Expo SDK 53, featuring a modern 
 
 ### Media & Assets
 - **Expo AV**: ~15.1.7 (Audio/Video)
-- **Expo Media Library**: ~17.1.7
+- **Expo Media Library**: ~17.1.7 (Media library access with permission handling)
 - **Expo Image**: ~2.4.0
+- **Expo Linking**: ~7.1.7 (iOS Settings integration)
 - **React Native SVG**: 15.11.2
 - **React Native WebView**: 13.13.5
 
@@ -49,15 +50,17 @@ TidBum is a React Native application built with Expo SDK 53, featuring a modern 
 tidbum/
 ├── app/                    # Expo Router pages (file-based routing)
 │   ├── _layout.tsx        # Root layout
-│   └── index.tsx          # Home page
+│   └── index.tsx          # Home page with permission handling
+├── lib/                   # Utility libraries
+│   └── media.ts          # Media library utilities and permission handling
+├── components/            # Reusable components
 ├── assets/                # Static assets (images, fonts)
 │   ├── fonts/
 │   └── images/
-├── my-expo-app/           # Sub-project directory
 ├── node_modules/
 ├── .expo/                 # Expo cache
 ├── .vscode/              # VS Code settings
-├── app.json              # Expo configuration
+├── app.json              # Expo configuration with media library permissions
 ├── babel.config.js       # Babel configuration
 ├── metro.config.js       # Metro bundler configuration
 ├── tailwind.config.js    # Tailwind CSS configuration
@@ -122,6 +125,24 @@ module.exports = {
 @tailwind utilities;
 ```
 
+### app.json (Media Library Configuration)
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
+          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
+    ]
+  }
+}
+```
+
 ## Available Scripts
 
 - `npm start` - Start Expo development server
@@ -144,23 +165,63 @@ module.exports = {
 - React Native Reanimated requires special Babel plugin
 - Metro bundler configured for various asset types
 - TypeScript strict mode enabled
+- Media library permissions configured in app.json
 
-### Recent Fixes
+### Recent Fixes & Improvements
 - Resolved Watchman permission issues on macOS
 - Configured NativeWind preset in Tailwind config
 - Set up proper Metro configuration for asset handling
 - Added React Native Reanimated Babel plugin
+- Implemented comprehensive media library permission handling
+- Added iOS Settings integration with expo-linking
+- Created automatic permission prompting on first app launch
+- Converted UI to use Tailwind CSS classes
 
 ## Key Features
-- File-based routing with Expo Router
-- Tailwind CSS styling with NativeWind
-- TypeScript for type safety
-- Local database with SQLite
-- Form handling with React Hook Form
-- State management with Zustand
-- Animation support with Reanimated and Moti
-- Media handling (audio, video, images)
-- Cross-platform (iOS, Android, Web)
+
+### Media Library Management
+- **Automatic Permission Handling**: Prompts for media library access on first app launch
+- **iOS Settings Integration**: Direct link to app settings for permission management
+- **Permission Status Management**: Comprehensive handling of granted, denied, and undetermined states
+- **User-Friendly UI**: Step-by-step instructions for enabling permissions
+- **Error Handling**: Graceful fallbacks and user-friendly error messages
+
+### UI/UX Features
+- **Modern Design**: Clean, accessible interface using Tailwind CSS
+- **Loading States**: Proper feedback during permission requests
+- **Responsive Layout**: Optimized for different screen sizes
+- **Accessibility**: Proper contrast, readable fonts, and touch targets
+
+### Technical Features
+- **File-based routing with Expo Router**
+- **Tailwind CSS styling with NativeWind**
+- **TypeScript for type safety**
+- **Local database with SQLite**
+- **Form handling with React Hook Form**
+- **State management with Zustand**
+- **Animation support with Reanimated and Moti**
+- **Media handling (audio, video, images)**
+- **Cross-platform (iOS, Android, Web)**
+
+## Media Library Implementation
+
+### Core Functions (`lib/media.ts`)
+- `checkAndRequestPermission()`: Automatic permission checking and requesting
+- `openAppSettings()`: iOS Settings integration
+- `getMediaLibrary()`: Media assets retrieval
+- `checkMediaLibraryPermission()`: Permission status checking
+- `requestMediaLibraryPermission()`: Manual permission requesting
+
+### Permission Flow
+1. **App Launch**: Automatically checks permission status
+2. **Undetermined**: Shows permission request modal
+3. **Denied**: Shows no-access screen with settings button
+4. **Granted**: Shows success state and main app content
+
+### iOS Settings Integration
+- Uses `expo-linking` for direct app settings access
+- Fallback to general settings if app-specific settings unavailable
+- User-friendly error handling with manual instructions
 
 ## Development Workflow
 1. Use `npx expo start` to start development server
@@ -168,3 +229,11 @@ module.exports = {
 3. Hot reload enabled for rapid development
 4. TypeScript provides compile-time error checking
 5. ESLint ensures code quality
+6. Media library permissions automatically handled on first launch
+
+## Recent Updates
+- **Automatic Permission Prompting**: App now automatically requests media library access on first launch
+- **Centralized Permission Logic**: All permission handling moved to `lib/media.ts`
+- **Tailwind CSS Implementation**: Converted all UI components to use Tailwind classes
+- **iOS Settings Integration**: Direct link to app settings for permission management
+- **Enhanced Error Handling**: Comprehensive error handling with user-friendly messages
