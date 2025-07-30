@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import AlbumForm from '../../components/AlbumForm';
+import { createAlbum } from '../../lib/db';
 import { CreateAlbumFormData } from '../../lib/schema';
 
 const CreateAlbumScreen = () => {
@@ -15,24 +16,22 @@ const CreateAlbumScreen = () => {
 	const handleSubmit = async (data: CreateAlbumFormData) => {
 		setIsSubmitting(true);
 		try {
-			// TODO: Implement album creation logic here
-			console.log('Creating album:', data);
-			
-			// Simulate API call
-			await new Promise(resolve => setTimeout(resolve, 1000));
-			
-			Alert.alert(
-				'Success!',
-				'Album created successfully',
-				[
-					{
-						text: 'OK',
-						onPress: () => {
-							router.back();
-						}
-					}
-				]
-			);
+			const albumId = await createAlbum({
+				name: data.name,
+				description: data.description,
+			});
+
+			if (!albumId) {
+				throw new Error('Failed to create album');
+			}
+
+			router.replace({
+				pathname: '/album/[album_id]',
+				params: {
+					album_id: albumId,
+					refresh: 'true',
+				},
+			});
 		} catch (error) {
 			Alert.alert('Error', 'Failed to create album. Please try again.');
 			throw error; // Re-throw to let the form handle the error

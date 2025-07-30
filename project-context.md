@@ -1,7 +1,7 @@
 # TidBum - Expo React Native Project
 
 ## Project Overview
-TidBum is a React Native application built with Expo SDK 53, featuring a modern tech stack with TypeScript, Tailwind CSS (via NativeWind), and various React Native libraries for enhanced functionality. The app focuses on media library management with automatic permission handling, iOS settings integration, and streamlined album creation forms with validation.
+TidBum is a React Native application built with Expo SDK 53, featuring a modern tech stack with TypeScript, Tailwind CSS (via NativeWind), and various React Native libraries for enhanced functionality. The app focuses on media library management with automatic permission handling, iOS settings integration, streamlined album creation forms with validation, and a robust local SQLite database for data persistence.
 
 ## Tech Stack
 
@@ -29,8 +29,9 @@ TidBum is a React Native application built with Expo SDK 53, featuring a modern 
 - **React Hook Form**: ^7.61.1 (Form handling with validation)
 - **Zod**: ^4.0.13 (Schema validation)
 - **@hookform/resolvers**: ^5.2.1 (Zod integration with React Hook Form)
-- **Expo SQLite**: ~15.2.14 (Local database)
+- **Expo SQLite**: ~15.2.14 (Local database with prepared statements)
 - **AsyncStorage**: ^2.2.0 (Local storage)
+- **React Native UUID**: ^2.0.3 (UUID generation for unique identifiers)
 
 ### Media & Assets
 - **Expo AV**: ~15.1.7 (Audio/Video)
@@ -53,10 +54,15 @@ tidbum/
 │   ├── _layout.tsx        # Root layout
 │   ├── index.tsx          # Home page with permission handling
 │   └── album/             # Album-related pages
+│       ├── _layout.tsx    # Album layout
+│       ├── index.tsx      # Album list page
 │       └── create.tsx     # Album creation form
 ├── lib/                   # Utility libraries
+│   ├── db.ts             # SQLite database operations and schema
 │   ├── media.ts          # Media library utilities and permission handling
 │   └── schema.ts         # Zod schemas for form validation
+├── types/                 # TypeScript type definitions
+│   └── album.ts          # Album interface definitions
 ├── components/            # Reusable components
 │   └── AlbumForm.tsx     # Reusable album creation form
 ├── assets/                # Static assets (images, fonts)
@@ -172,6 +178,8 @@ module.exports = {
 - TypeScript strict mode enabled
 - Media library permissions configured in app.json
 - React Hook Form with Zod validation for forms
+- SQLite database with prepared statements for security
+- React Native UUID for secure unique identifier generation
 
 ### Recent Fixes & Improvements
 - Resolved Watchman permission issues on macOS
@@ -185,8 +193,25 @@ module.exports = {
 - Implemented simplified album creation forms with React Hook Form and Zod validation
 - Created reusable form components for better code organization
 - Fixed TypeScript type issues with form validation schemas
+- **Implemented SQLite database with secure prepared statements**
+- **Added comprehensive database operations for albums and assets**
+- **Created type-safe database interfaces and operations**
+- **Implemented UUID generation using react-native-uuid**
+- **Added database initialization and table creation**
+- **Fixed UNIQUE constraint issues with proper UUID generation**
+- **Added debugging logs for album creation process**
 
 ## Key Features
+
+### Database Management
+- **SQLite Integration**: Local database with expo-sqlite for data persistence
+- **Secure Prepared Statements**: Protection against SQL injection attacks
+- **Type-Safe Operations**: Full TypeScript integration with database operations
+- **Automatic Initialization**: Database and tables created automatically on first run
+- **Comprehensive CRUD**: Complete create, read, update, delete operations
+- **Resource Management**: Proper statement finalization and connection handling
+- **UUID Generation**: Secure unique identifier generation using react-native-uuid
+- **Debug Logging**: Console logging for debugging album creation process
 
 ### Media Library Management
 - **Automatic Permission Handling**: Prompts for media library access on first app launch
@@ -214,12 +239,53 @@ module.exports = {
 - **File-based routing with Expo Router**
 - **Tailwind CSS styling with NativeWind**
 - **TypeScript for type safety**
-- **Local database with SQLite**
+- **Local database with SQLite and prepared statements**
 - **Form handling with React Hook Form**
 - **State management with Zustand**
 - **Animation support with Reanimated and Moti**
 - **Media handling (audio, video, images)**
 - **Cross-platform (iOS, Android, Web)**
+- **UUID generation for unique identifiers**
+
+## Database Implementation
+
+### Core Database Functions (`lib/db.ts`)
+- `initDb()`: Initialize database and create tables
+- `getDb()`: Get database instance (auto-initializes if needed)
+- `closeDb()`: Close database connection
+- `createAlbum()`: Create new album with UUID generation and debugging logs
+- `getAlbumById()`: Retrieve album by ID
+- `getAllAlbums()`: Get all albums
+- `updateAlbum()`: Update album details
+- `deleteAlbum()`: Delete album and related assets
+- `createAsset()`: Add media assets to albums
+- `getAssetsByAlbum()`: Get all assets in an album
+- `updateAssetOrder()`: Reorder assets within albums
+- `setAlbumCover()`: Set album cover image
+- `getAlbumStats()`: Get album statistics and counts
+
+### Database Schema
+- **Album Table**: Stores album information with hierarchical support
+- **Asset Table**: Stores media assets with ordering and metadata
+- **Foreign Key Relationships**: Proper referential integrity
+- **Automatic Timestamps**: Created and updated timestamps
+- **UUID Primary Keys**: Secure unique identifiers using react-native-uuid
+
+### Security Features
+- **Prepared Statements**: Protection against SQL injection
+- **Parameter Binding**: Safe parameter passing
+- **Statement Finalization**: Proper resource cleanup
+- **Type Safety**: Full TypeScript integration
+- **Error Handling**: Comprehensive error management
+- **UUID Generation**: Cryptographically secure unique identifiers
+
+### Current Implementation Status
+- **Database Initialization**: ✅ Complete with table creation
+- **Album Creation**: ✅ Working with UUID generation and debugging
+- **Prepared Statements**: ✅ Implemented for security
+- **Type Safety**: ✅ Full TypeScript integration
+- **Error Handling**: ✅ Comprehensive error management
+- **Debug Logging**: ✅ Console logs for troubleshooting
 
 ## Media Library Implementation
 
@@ -272,6 +338,8 @@ module.exports = {
 5. ESLint ensures code quality
 6. Media library permissions automatically handled on first launch
 7. Form validation provides real-time feedback
+8. Database automatically initializes on first app launch
+9. Debug logs help troubleshoot database operations
 
 ## Recent Updates
 - **Automatic Permission Prompting**: App now automatically requests media library access on first launch
@@ -284,3 +352,11 @@ module.exports = {
 - **Schema Validation**: Type-safe form validation with detailed error messages
 - **TypeScript Fixes**: Resolved type issues with form validation schemas
 - **Clean Architecture**: Simplified form structure focusing on essential fields
+- **SQLite Database Implementation**: Complete database layer with secure operations
+- **Prepared Statements**: SQL injection protection with prepared statements
+- **UUID Generation**: Secure unique identifier generation using react-native-uuid
+- **Database Schema**: Comprehensive table structure for albums and media assets
+- **Type-Safe Database Operations**: Full TypeScript integration with database layer
+- **Resource Management**: Proper database connection and statement handling
+- **Debug Logging**: Added console logs for troubleshooting album creation
+- **UNIQUE Constraint Fixes**: Resolved database constraint violations with proper UUID generation

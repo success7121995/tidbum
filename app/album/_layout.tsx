@@ -6,12 +6,13 @@ import { TouchableOpacity } from "react-native";
 const AlbumLayout = () => {
 	return (
 		<Stack screenOptions={{
-			headerShown: true,
+			headerShown: false,
 			headerShadowVisible: false,
 		}}>
 			<Stack.Screen
 				name="index"
 				options={{
+					headerShown: true,
 					headerTitle: 'Tidbum',
 					headerRight: () => (
 						<TouchableOpacity onPress={() => router.push('/album/create')}>
@@ -23,6 +24,7 @@ const AlbumLayout = () => {
 			<Stack.Screen
 				name="create"
 				options={{
+					headerShown: true,
 					headerTitle: 'Create Album',
 					headerLeft: () => (
 						<TouchableOpacity onPress={() => router.back()}>

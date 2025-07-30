@@ -2,13 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+	Alert,
+	KeyboardAvoidingView,
+	Platform,
+	Text,
+	TextInput,
+	TouchableOpacity,
+	View
 } from 'react-native';
 import { AlbumFormData, albumSchema } from '../lib/schema';
 
@@ -19,12 +19,12 @@ interface AlbumFormProps {
 	isSubmitting?: boolean;
 }
 
-export default function AlbumForm({ 
+const AlbumForm = ({ 
 	onSubmit, 
 	onCancel, 
 	initialData = {}, 
 	isSubmitting = false 
-}: AlbumFormProps) {
+}: AlbumFormProps) => {
 	const {
 		control,
 		handleSubmit,
@@ -145,3 +145,5 @@ export default function AlbumForm({
 		</KeyboardAvoidingView>
 	);
 } 
+
+export default AlbumForm;
