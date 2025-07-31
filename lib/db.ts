@@ -51,10 +51,11 @@ export const initDb = async (): Promise<SQLite.SQLiteDatabase> => {
                 album_id TEXT NOT NULL,
                 name TEXT NOT NULL,
                 uri TEXT NOT NULL,
-                media_type TEXT CHECK(media_type IN ('photo', 'video')) NOT NULL,
+                media_type TEXT CHECK(media_type IN ('image', 'video')) NOT NULL,
                 width INTEGER,
                 height INTEGER,
                 duration INTEGER,
+                caption TEXT,
                 size INTEGER,
                 order_index FLOAT DEFAULT 1000,
                 added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -118,9 +119,6 @@ export const createAlbum = async (album: Album): Promise<string> => {
         const db = await getDb();
         const albumId = uuid.v4();
 
-        console.log('Creating album with ID:', albumId);
-        console.log('Album data:', album);
-
         const stmt = await db.prepareAsync(
             'INSERT INTO album (album_id, name, description, parent_album_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?);'
         );
@@ -134,22 +132,9 @@ export const createAlbum = async (album: Album): Promise<string> => {
             new Date().toISOString()
         ];
         
-        console.log('Insert parameters:', insertParams);
-        
-        const result = await stmt.executeAsync(insertParams);
-
-        console.log('Insert result:', result);
+        await stmt.executeAsync(insertParams);
         
         await stmt.finalizeAsync();
-
-        // Check if the album was actually inserted
-        const checkResult = await db.getAllAsync('SELECT COUNT(*) as count FROM album WHERE album_id = ?', [albumId]);
-        
-        console.log('Album count check:', checkResult);
-
-        // Get the created album to verify it was inserted
-        const createdAlbum = await getAlbumById(albumId);
-        console.log('Created album:', createdAlbum);
 
         return albumId;
     } catch (error) {
@@ -159,25 +144,66 @@ export const createAlbum = async (album: Album): Promise<string> => {
 };
 
 /**
- * Get album by ID
+ * Get album by ID with assets and sub-albums
  */
 export const getAlbumById = async (albumId: string): Promise<Album | null> => {
     try {
         const db = await getDb();
-        console.log('Looking for album with ID:', albumId);
         
-        const result = await db.getAllAsync('SELECT * FROM album WHERE album_id = ?', [albumId]);
+        // Get the album with cover asset
+        const albumResult = await db.getAllAsync(`
+            SELECT 
+                a.*,
+                cover.uri as cover_uri,
+                cover.name as cover_name,
+                cover.media_type as cover_media_type
+            FROM album a
+            LEFT JOIN asset cover ON a.cover_asset_id = cover.asset_id
+            WHERE a.album_id = ?
+        `, [albumId]);
         
-        if (result && Array.isArray(result) && result.length > 0) {
-            const albumRow = result[0] as Album;
+        if (albumResult && Array.isArray(albumResult) && albumResult.length > 0) {
+            const albumRow = albumResult[0] as Album;
+
+            // Get all assets in this album
+            const assetsResult = await db.getAllAsync(`
+                SELECT 
+                    a.*,
+                    CASE 
+                        WHEN a.media_type LIKE 'image/%' THEN 'image'
+                        WHEN a.media_type LIKE 'video/%' THEN 'video'
+                        ELSE 'other'
+                    END as asset_type
+                FROM asset a
+                WHERE a.album_id = ?
+                ORDER BY a.added_at DESC
+            `, [albumId]);
+
+            // Get all sub-albums
+            const subAlbumsResult = await db.getAllAsync(`
+                SELECT 
+                    a.*,
+                    cover.uri as cover_uri,
+                    cover.name as cover_name,
+                    cover.media_type as cover_media_type,
+                    (SELECT COUNT(*) FROM asset WHERE album_id = a.album_id) as total_assets
+                FROM album a
+                LEFT JOIN asset cover ON a.cover_asset_id = cover.asset_id
+                WHERE a.parent_album_id = ?
+                ORDER BY a.name ASC
+            `, [albumId]);
+
 
             const album: Album = {
                 album_id: albumRow.album_id,
                 name: albumRow.name,
                 description: albumRow.description || '',
                 cover_asset_id: albumRow.cover_asset_id || undefined,
-                parent_album_id: albumRow.parent_album_id || undefined
+                parent_album_id: albumRow.parent_album_id || undefined,
+                assets: assetsResult as any[] || [],
+                subAlbums: subAlbumsResult as any[] || []
             };
+
             return album;
         }
         
@@ -247,10 +273,6 @@ export const getTopLevelAlbums = async (): Promise<(Album & { totalAssets: numbe
             console.log('Result is not an array:', typeof result, result);
         }
 
-        console.log('Final albums array:', albums);
-        
-        console.log('Final albums array with asset counts:', albums);
-        
         return albums;
     } catch (error) {
         console.error('Error getting top-level albums:', error);
@@ -311,6 +333,56 @@ const getAllSubAlbumIds = async (parentAlbumId: string): Promise<string[]> => {
     } catch (error) {
         console.error('Error getting sub-album IDs:', error);
         return [];
+    }
+};
+
+/**
+ * Update an album
+ */
+export const updateAlbum = async (albumId: string, album: Album): Promise<string> => {
+    try {
+        const db = await getDb();
+
+        const result = await db.runAsync(
+            'UPDATE album SET name = ?, description = ?, cover_asset_id = ?, updated_at = ? WHERE album_id = ?',
+            [
+                album.name,
+                album.description || '',
+                album.cover_asset_id || null,
+                new Date().toISOString(),
+                albumId
+            ]
+        );
+
+        if (result.changes === 0) {
+            throw new Error('Album not found or no changes made');
+        }
+
+        return albumId;
+    } catch (error) {
+        console.error('Error updating album:', error);
+        throw error;
+    }
+};
+
+/**
+ * Delete an album
+ * @param albumId - The album ID to delete
+ */
+export const deleteAlbum = async (albumId: string): Promise<string> => {
+    try {
+        const db = await getDb();
+        
+        const result = await db.runAsync('DELETE FROM album WHERE album_id = ?', [albumId]);
+
+        if (result.changes === 0) {
+            throw new Error('Album not found');
+        }
+
+        return albumId;
+    } catch (error) {
+        console.error('Error deleting album:', error);
+        throw error;
     }
 };
 

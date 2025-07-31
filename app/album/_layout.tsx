@@ -33,6 +33,7 @@ const AlbumLayout = () => {
 					),
 				}}
 			/>
+			<Stack.Screen name="[album_id]" />
 		</Stack>
 	);
 }

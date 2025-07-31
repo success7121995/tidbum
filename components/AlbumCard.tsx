@@ -1,13 +1,20 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from "expo-router";
-import { ActionSheetIOS, Image, Text, TouchableOpacity, View } from "react-native";
+import { ActionSheetIOS, Animated, Image, Text, TouchableOpacity, View } from "react-native";
+import { deleteAlbum } from "../lib/db";
 import { Album } from "../types/album";
 
 interface AlbumCardProps {
     album: Album & { totalAssets?: number };
+    onDelete?: (albumId: string) => void;
 }
 
-const AlbumCard = ({ album }: AlbumCardProps) => {
+const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
+    // ============================================================================
+    // STATE
+    // ============================================================================
+    const fadeAnim = new Animated.Value(1);
+    const scaleAnim = new Animated.Value(1);
 
     // ============================================================================
     // HANDLERS
@@ -28,7 +35,25 @@ const AlbumCard = ({ album }: AlbumCardProps) => {
             destructiveButtonIndex: 0,
         }, (buttonIndex) => {
             if (buttonIndex === 0) {
-                // deleteAlbum(albumId);
+                // Animate the card out before deleting
+                Animated.parallel([
+                    Animated.timing(fadeAnim, {
+                        toValue: 0,
+                        duration: 300,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(scaleAnim, {
+                        toValue: 0.8,
+                        duration: 300,
+                        useNativeDriver: true,
+                    }),
+                ]).start(() => {
+                    // Delete the album after animation completes
+                    (async () => {
+                        const album_id = await deleteAlbum(albumId);
+                        return onDelete?.(album_id);
+                    })();
+                });
             }
         });
     };
@@ -47,7 +72,13 @@ const AlbumCard = ({ album }: AlbumCardProps) => {
     // ============================================================================
 
     return (
-        <View className="bg-white flex-1">
+        <Animated.View 
+            className="bg-white flex-1"
+            style={{
+                opacity: fadeAnim,
+                transform: [{ scale: scaleAnim }],
+            }}
+        >
             {/* Photo Thumbnail - Clickable for navigation */}
             <TouchableOpacity 
                 className="w-full aspect-square bg-gray-200 relative rounded-xl rounded-br-none overflow-hidden"
@@ -84,7 +115,7 @@ const AlbumCard = ({ album }: AlbumCardProps) => {
                     {album.totalAssets || 0} {album.totalAssets && album.totalAssets > 2 ? 'assets' : 'asset'}
                 </Text>
             </View>
-        </View>
+        </Animated.View>
     );
 };
 

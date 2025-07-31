@@ -1,7 +1,7 @@
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Dimensions, FlatList, TouchableOpacity, View } from "react-native";
+import { Dimensions, FlatList, Text, TouchableOpacity, View } from "react-native";
 import AlbumCard from "../../components/AlbumCard";
 import { getTopLevelAlbums, initDb } from "../../lib/db";
 import { Album } from "../../types/album";
@@ -34,6 +34,14 @@ const HomeScreen = () => {
         }, [])
     );
 
+    /**
+     * Handle album delete with smooth animation
+     */
+    const handleAlbumDelete = (albumId: string) => {
+        const newAlbums = albums.filter((album) => album.album_id !== albumId);
+        setAlbums(newAlbums);
+    };
+
     // ============================================================================
     // RENDERERS
     // ============================================================================
@@ -43,7 +51,10 @@ const HomeScreen = () => {
      */
     const renderAlbumCard = ({ item }: { item: Album & { totalAssets: number } }) => (
         <View className={`${isTablet ? 'w-1/5' : 'w-1/3'} px-1 mb-4`}>
-            <AlbumCard album={item} />
+            <AlbumCard
+                album={item}
+                onDelete={handleAlbumDelete}
+            />
         </View>
     );
 
@@ -57,6 +68,7 @@ const HomeScreen = () => {
             </View>
 
             {/* Album grid */}
+            { albums.length > 0 ? (
             <View className="flex-1 px-4 py-4">
                 <FlatList
                     data={albums}
@@ -64,13 +76,24 @@ const HomeScreen = () => {
                     keyExtractor={(item) => item.album_id || ''}
                     numColumns={albumsPerRow}
                     columnWrapperStyle={{ 
-                        justifyContent: 'space-between',
-                        marginBottom: 16
+                        justifyContent: 'flex-start',
+                        gap: 2
                     }}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingBottom: 20 }}
-                />
-            </View>
+                    removeClippedSubviews={false}
+                    getItemLayout={(data, index) => ({
+                        length: 200, // Approximate height of each item
+                        offset: 200 * Math.floor(index / albumsPerRow),
+                        index,
+                    })}
+                    />
+                </View>
+            ) : (
+                <View className="flex-1 items-center justify-center">
+                    <Text>No albums found</Text>
+                </View>
+            )}
         </View>
     );
 };

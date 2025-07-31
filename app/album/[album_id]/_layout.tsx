@@ -12,7 +12,7 @@ const AlbumLayout = () => {
                 name="index"
                 options={{
                     headerShown: true,
-                    headerTitle: 'Album',
+                    headerTitle: '',
 					headerLeft: () => (
 						<TouchableOpacity onPress={() => router.back()}>
 							<Feather name="chevron-left" size={32} color="black" />
@@ -20,6 +20,18 @@ const AlbumLayout = () => {
 					),
                 }}
             />
+			<Stack.Screen
+				name="edit"
+				options={{
+					headerShown: true,
+					headerTitle: 'Edit Album',
+					headerLeft: () => (
+						<TouchableOpacity onPress={() => router.back()}>
+							<Feather name="chevron-left" size={32} color="black" />
+						</TouchableOpacity>
+					),
+				}}
+			/>
 		</Stack>
 	);
 };
