@@ -1,7 +1,7 @@
 # TidBum - Expo React Native Project
 
 ## Project Overview
-TidBum is a React Native application built with Expo SDK 53, featuring a modern tech stack with TypeScript, Tailwind CSS (via NativeWind), and various React Native libraries for enhanced functionality. The app focuses on media library management with automatic permission handling, iOS settings integration, streamlined album creation forms with validation, a robust local SQLite database for data persistence, and a responsive grid-based album gallery interface. The codebase follows a well-organized structure with clear separation of concerns and consistent code organization patterns.
+TidBum is a React Native application built with Expo SDK 53, featuring a modern tech stack with TypeScript, Tailwind CSS (via NativeWind), and various React Native libraries for enhanced functionality. The app focuses on media library management with automatic permission handling, iOS settings integration, streamlined album creation forms with validation, a robust local SQLite database for data persistence, a responsive grid-based album gallery interface, and a sophisticated iOS-style image slider with gesture support and instant caption updates. The codebase follows a well-organized structure with clear separation of concerns and consistent code organization patterns.
 
 ## Tech Stack
 
@@ -41,6 +41,10 @@ TidBum is a React Native application built with Expo SDK 53, featuring a modern 
 - **React Native SVG**: 15.11.2
 - **React Native WebView**: 13.13.5
 
+### Gesture & Animation
+- **React Native Gesture Handler**: ~2.20.2 (Advanced gesture recognition)
+- **React Native Reanimated**: ~3.17.4 (Declarative animations)
+
 ### Development Tools
 - **ESLint**: ^9.25.0
 - **Prettier**: prettier-plugin-tailwindcss
@@ -59,7 +63,7 @@ tidbum/
 │       ├── create.tsx     # Album creation form
 │       └── [album_id]/    # Dynamic album routes
 │           ├── _layout.tsx # Album detail layout
-│           ├── index.tsx   # Album detail page with asset grid
+│           ├── index.tsx   # Album detail page with asset grid and slider
 │           └── edit.tsx    # Album editing form
 ├── lib/                   # Utility libraries
 │   ├── db.ts             # SQLite database operations and schema
@@ -67,12 +71,16 @@ tidbum/
 │   └── schema.ts         # Zod schemas for form validation
 ├── types/                 # TypeScript type definitions
 │   ├── album.d.ts        # Album interface definitions
-│   └── asset.d.ts        # Asset interface definitions
+│   ├── asset.d.ts        # Asset interface definitions
+│   └── setting.d.ts      # Settings interface definitions
 ├── components/            # Reusable components
 │   ├── AlbumCard.tsx     # Responsive album card with navigation
 │   ├── AlbumForm.tsx     # Reusable album creation form
 │   ├── Album.tsx         # Album detail component with asset grid
-│   └── MediaLibrary.tsx  # Media library picker with multi-selection
+│   ├── AlbumSlider.tsx   # iOS-style image slider with gesture support and instant caption updates
+│   ├── MediaLibrary.tsx  # Media library picker with multi-selection
+│   └── svg/              # Custom SVG components
+│       └── caption.tsx   # Caption icon component
 ├── assets/                # Static assets (images, fonts)
 │   ├── fonts/
 │   └── images/
@@ -177,6 +185,7 @@ export default Component;
 - **`components/MediaLibrary.tsx`**: Organized with STATE, CONSTANTS, HANDLERS, RENDERERS sections
 - **`components/Album.tsx`**: Organized with CONSTANTS, RENDERERS sections
 - **`app/album/[album_id]/index.tsx`**: Organized with STATE, HANDLERS, RENDERERS sections
+- **`components/AlbumSlider.tsx`**: Organized with STATE, CONSTANTS, ANIMATED VALUES, EFFECTS, HANDLERS, GESTURE HANDLERS, ANIMATED STYLES, RENDER sections
 
 #### 🔄 **Files Needing Organization**
 - **`app/index.tsx`**: Home page with permission handling
@@ -203,14 +212,18 @@ tidbum/
 │   ├── AlbumCard.tsx            # Album card (✅ organized)
 │   ├── AlbumForm.tsx            # Album form
 │   ├── Album.tsx                # Album detail (✅ organized)
-│   └── MediaLibrary.tsx         # Media picker (✅ organized)
+│   ├── AlbumSlider.tsx          # iOS-style slider (✅ organized)
+│   ├── MediaLibrary.tsx         # Media picker (✅ organized)
+│   └── svg/                     # Custom SVG components
+│       └── caption.tsx          # Caption icon
 ├── lib/                         # Utility libraries
 │   ├── db.ts                    # Database operations (✅ organized)
 │   ├── media.ts                 # Media utilities
 │   └── schema.ts                # Validation schemas
 ├── types/                       # TypeScript definitions
 │   ├── album.d.ts               # Album types
-│   └── asset.d.ts               # Asset types (✅ organized)
+│   ├── asset.d.ts               # Asset types (✅ organized)
+│   └── setting.d.ts             # Settings types
 ├── hooks/                       # Custom React hooks (planned)
 │   ├── useAlbums.ts             # Album-related hooks
 │   └── useMedia.ts              # Media-related hooks
@@ -328,6 +341,9 @@ module.exports = {
 - React Native UUID for secure unique identifier generation
 - Responsive grid layout for album gallery
 - **Consistent code organization pattern across files**
+- **React Native Gesture Handler for advanced touch interactions**
+- **iOS-style image slider with gesture support and instant caption updates**
+- **Linear gradient captions with real-time updates**
 
 ### Recent Fixes & Improvements
 - Resolved Watchman permission issues on macOS
@@ -369,6 +385,25 @@ module.exports = {
 - **Implemented performance-optimized asset rendering with React.memo**
 - **Added visual feedback for asset selection with checkmarks**
 - **Implemented transaction-based asset insertion for data integrity**
+- **Implemented iOS-style AlbumSlider component with gesture support**
+- **Added pan gesture for horizontal navigation between assets**
+- **Implemented pinch-to-zoom and double-tap-to-zoom functionality**
+- **Created thumbnail indicators with interactive navigation**
+- **Added caption editing modal with iOS-style design**
+- **Implemented safe area handling for proper modal display**
+- **Fixed gesture handling conflicts and state synchronization issues**
+- **Added conditional zoom/pan transforms for current asset only**
+- **Optimized database updateAsset function with declarative field mappings**
+- **Fixed asset ID mapping issues between database and UI**
+- **Implemented proper touch event handling with TouchableOpacity**
+- **Added comprehensive error handling and debugging for slider functionality**
+- **Fixed database initialization syntax error in settings table**
+- **Implemented instant caption updates with local state management**
+- **Added linear gradient captions with proper opacity transitions**
+- **Fixed TypeScript type mismatches between boolean and number for caption_open**
+- **Implemented useFocusEffect for settings loading on screen focus**
+- **Added proper boolean/number conversion for database compatibility**
+- **Enhanced caption display with gradient overlay and instant updates**
 
 ## Key Features
 
@@ -393,6 +428,9 @@ module.exports = {
 - **Batch Operations**: Transaction-based asset insertion for performance
 - **Dynamic Order Indexing**: Float-based order system for flexible sorting
 - **Comprehensive Asset Metadata**: EXIF data, GPS coordinates, and media properties storage
+- **Optimized Update Operations**: Declarative field mappings for efficient asset updates
+- **Settings Management**: User preferences storage with boolean/number type conversion
+- **Instant State Updates**: Local state management for immediate UI updates
 
 ### Media Library Management
 - **Automatic Permission Handling**: Prompts for media library access on first app launch
@@ -414,6 +452,37 @@ module.exports = {
 - **Visual Indicators**: Video play icons and selection checkmarks
 - **Duplicate Filtering**: Automatically exclude assets already in database
 - **Dynamic Ordering**: Float-based order index for flexible sorting
+- **iOS-Style Slider**: Full-screen image slider with gesture support
+- **Interactive Navigation**: Tap thumbnails to navigate between assets
+
+### Image Slider & Gesture Support
+- **iOS-Style Animations**: Smooth spring animations for asset transitions
+- **Pan Gesture Navigation**: Horizontal swipe to navigate between assets
+- **Pinch-to-Zoom**: Zoom in/out with pinch gestures
+- **Double-Tap Zoom**: Double-tap to zoom in/out
+- **Pan When Zoomed**: Move around zoomed images
+- **Thumbnail Indicators**: Interactive thumbnail navigation
+- **Caption Display**: Overlay captions on images with linear gradient
+- **Action Buttons**: Edit, delete, and caption toggle buttons
+- **Caption Editing Modal**: iOS-style modal for editing captions
+- **Safe Area Handling**: Proper modal display with safe area support
+- **Gesture Conflict Resolution**: Proper handling of simultaneous gestures
+- **State Synchronization**: Real-time UI updates with gesture state
+- **Conditional Zoom**: Zoom/pan transforms only affect current asset
+- **Instant Caption Updates**: Real-time caption display updates during navigation
+- **Linear Gradient Captions**: Beautiful gradient overlay from transparent to solid
+- **Local State Management**: Immediate UI updates without database round-trips
+
+### Caption System
+- **Instant Updates**: Captions update immediately when navigating between assets
+- **Linear Gradient Display**: Beautiful gradient overlay from transparent to solid black
+- **Real-time Editing**: Edit captions with instant preview
+- **Database Persistence**: Captions saved to SQLite database with proper type handling
+- **Toggle Functionality**: Enable/disable caption display with settings persistence
+- **iOS-Style Modal**: Native-looking caption editing interface
+- **Type Safety**: Proper boolean/number conversion for database compatibility
+- **Local State Management**: Immediate UI updates using local state
+- **Focus-based Loading**: Settings loaded when screen comes into focus
 
 ### Form Management & Validation
 - **React Hook Form Integration**: Efficient form state management
@@ -434,6 +503,9 @@ module.exports = {
 - **Modern Card Design**: Rounded corners, shadows, and proper spacing
 - **Asset Grid**: Seamless edge-to-edge asset display
 - **Selection Interface**: Intuitive multi-selection with visual feedback
+- **iOS-Style Modals**: Native-looking modal presentations
+- **Gesture Feedback**: Smooth animations and visual feedback for gestures
+- **Linear Gradient Captions**: Beautiful gradient overlays for caption display
 
 ### Technical Features
 - **File-based routing with Expo Router**
@@ -450,6 +522,12 @@ module.exports = {
 - **Consistent code organization pattern**
 - **Performance-optimized asset rendering**
 - **Transaction-based database operations**
+- **Advanced gesture handling with React Native Gesture Handler**
+- **iOS-style image slider with full gesture support**
+- **Real-time animation and state synchronization**
+- **Instant caption updates with local state management**
+- **Linear gradient captions with proper opacity transitions**
+- **Settings persistence with type-safe boolean/number conversion**
 
 ## Database Implementation
 
@@ -472,10 +550,14 @@ module.exports = {
 - `getAlbumStats()`: Get album statistics and counts
 - `getAlbumTotalAssetCount()`: Count assets including sub-albums
 - `getAllSubAlbumIds()`: Recursively get sub-album IDs
+- `updateAsset()`: Optimized asset update with declarative field mappings
+- `getSettings()`: Retrieve user settings with proper type handling
+- `updateSettings()`: Update user settings with boolean/number conversion
 
 ### Database Schema
 - **Album Table**: Stores album information with hierarchical support
 - **Asset Table**: Stores media assets with ordering and comprehensive metadata
+- **Settings Table**: Stores user preferences with proper type handling
 - **Foreign Key Relationships**: Proper referential integrity
 - **Automatic Timestamps**: Created and updated timestamps
 - **UUID Primary Keys**: Secure unique identifiers using react-native-uuid
@@ -491,9 +573,10 @@ module.exports = {
 - **UUID Generation**: Cryptographically secure unique identifiers
 - **Transaction Support**: ACID compliance for data integrity
 - **Correct SQL Methods**: Using runAsync for parameterized queries and execAsync for DDL statements
+- **Type Conversion**: Proper boolean/number conversion for database compatibility
 
 ### Current Implementation Status
-- **Database Initialization**: ✅ Complete with table creation
+- **Database Initialization**: ✅ Complete with table creation and syntax fixes
 - **Album Creation**: ✅ Working with UUID generation and debugging
 - **Album Editing**: ✅ Complete with form pre-population and validation
 - **Asset Insertion**: ✅ Batch insertion with transaction support
@@ -507,6 +590,9 @@ module.exports = {
 - **Code Organization**: ✅ Consistent structure in database files
 - **Performance Optimization**: ✅ Transaction-based operations
 - **Metadata Storage**: ✅ EXIF, GPS, and media properties
+- **Asset Updates**: ✅ Optimized update operations with field mappings
+- **Settings Management**: ✅ User preferences with proper type handling
+- **Instant State Updates**: ✅ Local state management for immediate UI updates
 
 ## UI Components
 
@@ -528,6 +614,25 @@ module.exports = {
 - **Performance Optimized**: React.memo and useCallback for smooth rendering
 - **Video Indicators**: Play icon overlay for video assets
 - **Touch Handling**: Proper touch events for asset interaction
+- **Slider Integration**: Opens AlbumSlider on asset tap
+
+### AlbumSlider Component (`components/AlbumSlider.tsx`)
+- **iOS-Style Animations**: Smooth spring animations for asset transitions
+- **Gesture Support**: Pan, pinch, and double-tap gestures
+- **Thumbnail Navigation**: Interactive thumbnail indicators
+- **Caption Display**: Overlay captions on images with linear gradient
+- **Action Buttons**: Edit, delete, and caption toggle buttons
+- **Caption Editing Modal**: iOS-style modal for editing captions
+- **Safe Area Handling**: Proper modal display with safe area support
+- **State Synchronization**: Real-time UI updates with gesture state
+- **Conditional Zoom**: Zoom/pan transforms only affect current asset
+- **Instant Caption Updates**: Real-time caption display during navigation
+- **Linear Gradient Captions**: Beautiful gradient overlay from transparent to solid
+- **Local State Management**: Immediate UI updates without database round-trips
+- **Settings Integration**: Caption toggle with persistent user preferences
+- **Type-Safe Database Operations**: Proper boolean/number conversion for settings
+- **Focus-based Loading**: Settings loaded when screen comes into focus
+- **Code Organization**: ✅ Well-structured with clear section separation
 
 ### MediaLibrary Component (`components/MediaLibrary.tsx`)
 - **Multi-Selection Interface**: Tap to select/deselect assets
@@ -613,6 +718,7 @@ module.exports = {
 - **Dynamic Ordering**: Float-based order index for flexible sorting
 - **Metadata Preservation**: Store EXIF data, GPS coordinates, and media properties
 - **Performance Optimization**: Efficient database operations with prepared statements
+- **Optimized Updates**: Declarative field mappings for efficient asset updates
 
 ### Asset Display
 - **Responsive Grid**: 5 columns on iPhone, 9 on iPad
@@ -620,6 +726,7 @@ module.exports = {
 - **Touch Interaction**: Tap to select/deselect assets
 - **Performance Optimized**: React.memo and useCallback for smooth rendering
 - **Consistent Layout**: Identical grid layout across MediaLibrary and Album components
+- **iOS-Style Slider**: Full-screen image slider with gesture support
 
 ## Development Workflow
 1. Use `npx expo start` to start development server
@@ -635,6 +742,11 @@ module.exports = {
 11. **Consistent code organization pattern for maintainability**
 12. **Asset management with multi-selection and duplicate prevention**
 13. **Performance-optimized rendering with React.memo and useCallback**
+14. **iOS-style image slider with full gesture support**
+15. **Real-time animation and state synchronization**
+16. **Instant caption updates with local state management**
+17. **Linear gradient captions with proper opacity transitions**
+18. **Settings persistence with type-safe boolean/number conversion**
 
 ## Recent Updates
 - **Automatic Permission Prompting**: App now automatically requests media library access on first launch
@@ -675,3 +787,23 @@ module.exports = {
 - **Unified Asset Interface**: Created single interface for database and media library compatibility
 - **Transaction Support**: Added ACID compliance for data integrity
 - **Dynamic Order Indexing**: Implemented float-based ordering system for flexible sorting
+- **iOS-Style AlbumSlider**: Implemented full-screen image slider with gesture support
+- **Gesture Navigation**: Added pan gesture for horizontal navigation between assets
+- **Zoom Functionality**: Implemented pinch-to-zoom and double-tap-to-zoom
+- **Thumbnail Indicators**: Created interactive thumbnail navigation
+- **Caption Editing**: Added iOS-style caption editing modal
+- **Safe Area Handling**: Implemented proper modal display with safe area support
+- **Gesture Conflict Resolution**: Fixed gesture handling conflicts and state synchronization
+- **Conditional Zoom**: Implemented zoom/pan transforms for current asset only
+- **Database Optimization**: Optimized updateAsset function with declarative field mappings
+- **Asset ID Mapping**: Fixed asset ID mapping issues between database and UI
+- **Touch Event Handling**: Improved touch event handling with TouchableOpacity
+- **Error Handling**: Added comprehensive error handling and debugging for slider functionality
+- **Database Syntax Fixes**: Fixed SQL syntax error in settings table creation
+- **Instant Caption Updates**: Implemented local state management for immediate caption updates
+- **Linear Gradient Captions**: Added beautiful gradient overlay for caption display
+- **Type-Safe Settings**: Fixed boolean/number type conversion for database compatibility
+- **Focus-based Loading**: Implemented useFocusEffect for settings loading on screen focus
+- **Enhanced Caption System**: Added toggle functionality with persistent user preferences
+- **Real-time UI Updates**: Implemented immediate caption display updates during navigation
+- **Settings Persistence**: Added proper settings storage and retrieval with type handling

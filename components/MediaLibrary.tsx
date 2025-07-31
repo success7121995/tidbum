@@ -96,9 +96,8 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
                     const newAssets = mediaAssets.filter(asset => !existingAssetIds.has(asset.id));
                     setFilteredAssets(newAssets);
                     
-                    console.log(`Filtered ${mediaAssets.length - newAssets.length} existing assets from ${mediaAssets.length} total assets`);
                 } else {
-                    console.log('Failed to retrieve media library assets');
+                    console.error('Failed to retrieve media library assets');
                     setFilteredAssets([]);
                 }
             } catch (error) {

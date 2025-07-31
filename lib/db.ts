@@ -1,4 +1,5 @@
 import { Asset } from '@/types/asset';
+import { Settings } from '@/types/setting';
 import * as SQLite from 'expo-sqlite';
 import uuid from 'react-native-uuid';
 import { Album } from '../types/album';
@@ -79,7 +80,16 @@ export const initDb = async (): Promise<SQLite.SQLiteDatabase> => {
             );
         `);
 
-        console.log('Database initialized successfully');
+        // Create setting table
+        await db.execAsync(`
+            CREATE TABLE IF NOT EXISTS setting (
+                lang TEXT,
+                caption_open BOOLEAN DEFAULT 0
+            );
+        `);
+
+        
+
         return db;
     } catch (error) {
         console.error('Error initializing database:', error);
@@ -183,7 +193,28 @@ export const getAlbumById = async (albumId: string): Promise<Album | null> => {
             // Get all assets in this album
             const assetsResult = await db.getAllAsync(`
                 SELECT 
-                    a.*,
+                    a.asset_id as id,
+                    a.asset_id,
+                    a.album_id,
+                    a.name as filename,
+                    a.name,
+                    a.uri,
+                    a.local_uri as localUri,
+                    a.media_type as mediaType,
+                    a.media_type,
+                    a.media_subtypes as mediaSubtypes,
+                    a.media_subtypes as media_subtype,
+                    a.width,
+                    a.height,
+                    a.duration,
+                    a.creation_time as creationTime,
+                    a.modification_time as modificationTime,
+                    a.added_at as created_at,
+                    a.updated_at,
+                    a.orientation,
+                    a.is_favorite as isFavorite,
+                    a.is_hidden as isHidden,
+                    a.caption,
                     CASE 
                         WHEN a.media_type LIKE 'photo/%' THEN 'photo'
                         WHEN a.media_type LIKE 'video/%' THEN 'video'
@@ -285,7 +316,7 @@ export const getTopLevelAlbums = async (): Promise<(Album & { totalAssets: numbe
                 });
             }
         } else {
-            console.log('Result is not an array:', typeof result, result);
+            console.error('Result is not an array:', typeof result, result);
         }
 
         return albums;
@@ -585,8 +616,208 @@ export const getExistingAssetIdsByAlbum = async (albumId: string): Promise<Set<s
     }
 };
 
+/**
+ * Update asset
+ * @param assetId - The asset ID to update
+ * @param asset - The asset to update
+ * @returns The updated asset ID
+ */
+export const updateAsset = async (assetId: string, asset: Asset): Promise<string> => {
+    try {
+        const db = await getDb();
+
+        // Field mapping for efficient updates
+        const fieldMappings = [
+            { key: 'caption', dbField: 'caption' },
+            { key: 'name', dbField: 'name' },
+            { key: 'filename', dbField: 'name' }, // filename maps to name in DB
+            { key: 'uri', dbField: 'uri' },
+            { key: 'localUri', dbField: 'local_uri' },
+            { key: 'mediaType', dbField: 'media_type' },
+            { key: 'width', dbField: 'width' },
+            { key: 'height', dbField: 'height' },
+            { key: 'duration', dbField: 'duration' },
+            { key: 'creationTime', dbField: 'creation_time' },
+            { key: 'modificationTime', dbField: 'modification_time' },
+            { key: 'orientation', dbField: 'orientation' },
+            { key: 'album_id', dbField: 'album_id' },
+        ];
+
+        // Special field mappings that need transformation
+        const specialMappings = [
+            { 
+                key: 'mediaSubtypes', 
+                dbField: 'media_subtypes',
+                transform: (value: any) => JSON.stringify(value)
+            },
+            { 
+                key: 'isFavorite', 
+                dbField: 'is_favorite',
+                transform: (value: any) => value ? 1 : 0
+            },
+            { 
+                key: 'isHidden', 
+                dbField: 'is_hidden',
+                transform: (value: any) => value ? 1 : 0
+            },
+            { 
+                key: 'exif', 
+                dbField: 'exif_data',
+                transform: (value: any) => JSON.stringify(value)
+            },
+        ];
+
+        // Build dynamic update query
+        const fields: string[] = [];
+        const values: any[] = [];
+
+        // Process regular field mappings
+        fieldMappings.forEach(({ key, dbField }) => {
+            if (asset[key as keyof Asset] !== undefined) {
+                fields.push(`${dbField} = ?`);
+                values.push(asset[key as keyof Asset]);
+            }
+        });
+
+        // Process special field mappings
+        specialMappings.forEach(({ key, dbField, transform }) => {
+            if (asset[key as keyof Asset] !== undefined) {
+                fields.push(`${dbField} = ?`);
+                values.push(transform(asset[key as keyof Asset]));
+            }
+        });
+
+        // Handle location fields (nested object)
+        if (asset.location) {
+            const locationFields = [
+                { key: 'latitude', dbField: 'location_latitude' },
+                { key: 'longitude', dbField: 'location_longitude' },
+                { key: 'altitude', dbField: 'location_altitude' },
+                { key: 'heading', dbField: 'location_heading' },
+                { key: 'speed', dbField: 'location_speed' },
+                { key: 'timestamp', dbField: 'location_timestamp' },
+            ];
+
+            locationFields.forEach(({ key, dbField }) => {
+                if (asset.location![key as keyof typeof asset.location] !== undefined) {
+                    fields.push(`${dbField} = ?`);
+                    values.push(asset.location![key as keyof typeof asset.location]);
+                }
+            });
+        }
+
+        // Always update updated_at
+        fields.push('updated_at = ?');
+        values.push(new Date().toISOString());
+
+        // Add assetId for WHERE clause
+        values.push(assetId);
+
+        // Early return if no fields to update
+        if (fields.length === 0) {
+            return assetId;
+        }
+
+        // Compose and execute the query
+        const query = `UPDATE asset SET ${fields.join(', ')} WHERE asset_id = ?`;
+        const result = await db.runAsync(query, values);
+        
+        if (result.changes === 0) {
+            throw new Error('Asset not found or no changes made');
+        }
+
+        return assetId;
+    } catch (error) {
+        console.error('Error updating asset:', error);
+        throw error;
+    }
+};
+
+/**
+ * Delete an asset
+ * @param assetId - The asset ID to delete
+ * @returns The deleted asset ID
+ */
+export const deleteAsset = async (assetId: string): Promise<string> => {
+    try {
+        const db = await getDb();
+
+        console.log('🖱️ Deleting asset:', assetId);
+        // Delete the asset
+        await db.runAsync('DELETE FROM asset WHERE asset_id = ?', [assetId]);
+
+        return assetId;
+    } catch (error) {
+        console.error('Error deleting asset:', error);
+        throw error;
+    }
+};
+
 
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
+/**
+ * Get all settings
+ */
+export const getSettings = async (): Promise<Settings> => {
+    try {
+        const db = await getDb();
+
+        const result = await db.getAllAsync(`
+            SELECT * FROM setting
+        `);
+
+        if (result && Array.isArray(result) && result.length > 0) {
+            return result[0] as Settings;
+        }
+
+        return {
+            lang: 'en',
+            caption_open: 0
+        };
+        
+    } catch (error) {
+        console.error('Error getting settings:', error);
+        throw error;
+    }
+};
+
+/**
+ * Update settings
+ */
+export const updateSettings = async (settings: Settings): Promise<void> => {
+    try {
+        const db = await getDb();
+
+        // Check if settings exist
+        const existingSettings = await db.getAllAsync('SELECT COUNT(*) as count FROM setting');
+        const hasSettings = (existingSettings[0] as any)?.count > 0;
+
+        if (hasSettings) {
+            // Update existing settings
+            const stmt = await db.prepareAsync(
+                'UPDATE setting SET lang = ?, caption_open = ?'
+            );
+            await stmt.executeAsync([
+                settings.lang || 'en',
+                settings.caption_open || false,
+            ]);
+            await stmt.finalizeAsync();
+        } else {
+            // Insert new settings
+            const stmt = await db.prepareAsync(
+                'INSERT INTO setting (lang, caption_open) VALUES (?, ?)'
+            );
+            await stmt.executeAsync([
+                settings.lang || 'en',
+                settings.caption_open || false,
+            ]);
+            await stmt.finalizeAsync();
+        }
+    } catch (error) {
+        console.error('Error updating settings:', error);
+        throw error;
+    }
+};

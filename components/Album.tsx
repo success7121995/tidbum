@@ -29,13 +29,14 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
      */
     const AssetItem = useCallback(({ asset }: { asset: Asset }) => {
         return (
-            <View 
+            <TouchableOpacity
                 style={{
                     width: itemSize,
                     height: itemSize,
                     position: 'relative',
                 }}
-                onTouchEnd={() => onAssetPress?.(asset)}
+                onPress={() => onAssetPress?.(asset)}
+                activeOpacity={0.7}
             >
                 <Image 
                     source={{ uri: asset.uri }} 
@@ -50,7 +51,7 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
                         </View>
                     </View>
                 )}
-            </View>
+            </TouchableOpacity>
         );
     }, [itemSize, onAssetPress]);
 

@@ -1,4 +1,5 @@
 import AlbumWithAssets from "@/components/Album";
+import AlbumSlider from "@/components/AlbumSlider";
 import MediaLibrary from "@/components/MediaLibrary";
 import { getAlbumById, insertAssets } from "@/lib/db";
 import { type Album } from "@/types/album";
@@ -17,6 +18,8 @@ const AlbumScreen = () => {
 	const { album_id } = useLocalSearchParams();
 	const [album, setAlbum] = useState<Album | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
+	const [selectedAssetIndex, setSelectedAssetIndex] = useState(0);
+	const [isSliderOpen, setIsSliderOpen] = useState(false);
 
 	// ============================================================================
 	// HANDLERS
@@ -29,7 +32,6 @@ const AlbumScreen = () => {
 		try {
 			setIsLoading(true);
 			const album = await getAlbumById(album_id as string);
-			console.log(album);
 			setAlbum(album);
 		} catch (error) {
 			console.error('Error fetching album:', error);
@@ -98,9 +100,25 @@ const AlbumScreen = () => {
 	 * @param asset - The pressed asset
 	 */
 	const handleAssetPress = (asset: Asset) => {
-		// TODO: Implement asset detail view or full-screen preview
-		console.log('Asset pressed:', asset.id);
+		// Find the index of the pressed asset
+		const assetIndex = album?.assets?.findIndex(a => a.id === asset.id) ?? -1;
+		
+		if (assetIndex !== -1) {
+			setSelectedAssetIndex(assetIndex);
+			setIsSliderOpen(true);
+		}
 	};
+
+	/**
+	 * Handle delete
+	 * @param asset - The asset to delete
+	 */
+	const handleDelete = (asset: Asset) => {
+		console.log('Delete:', asset.id);
+	};
+
+
+
 
 	// ============================================================================
 	// RENDERERS
@@ -184,6 +202,15 @@ const AlbumScreen = () => {
 				visible={isMediaLibraryOpen}
 				onClose={() => setIsMediaLibraryOpen(false)}
 				onSelect={handleSelectAssets}
+			/>
+
+			{/* Album slider */}
+			<AlbumSlider
+				visible={isSliderOpen}
+				assets={album.assets || []}
+				selectedAssetIndex={selectedAssetIndex}
+				onAssetChange={setSelectedAssetIndex}
+				onClose={() => setIsSliderOpen(false)}
 			/>
 		</View>
 	);
