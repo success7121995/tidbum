@@ -59,17 +59,20 @@ tidbum/
 │       ├── create.tsx     # Album creation form
 │       └── [album_id]/    # Dynamic album routes
 │           ├── _layout.tsx # Album detail layout
-│           ├── index.tsx   # Album detail page
+│           ├── index.tsx   # Album detail page with asset grid
 │           └── edit.tsx    # Album editing form
 ├── lib/                   # Utility libraries
 │   ├── db.ts             # SQLite database operations and schema
 │   ├── media.ts          # Media library utilities and permission handling
 │   └── schema.ts         # Zod schemas for form validation
 ├── types/                 # TypeScript type definitions
-│   └── album.d.ts        # Album interface definitions
+│   ├── album.d.ts        # Album interface definitions
+│   └── asset.d.ts        # Asset interface definitions
 ├── components/            # Reusable components
 │   ├── AlbumCard.tsx     # Responsive album card with navigation
-│   └── AlbumForm.tsx     # Reusable album creation form
+│   ├── AlbumForm.tsx     # Reusable album creation form
+│   ├── Album.tsx         # Album detail component with asset grid
+│   └── MediaLibrary.tsx  # Media library picker with multi-selection
 ├── assets/                # Static assets (images, fonts)
 │   ├── fonts/
 │   └── images/
@@ -171,11 +174,13 @@ export default Component;
 - **`app/album/index.tsx`**: Follows the pattern with STATE, HANDLERS, RENDERERS sections
 - **`components/AlbumCard.tsx`**: Organized with HANDLERS and RENDERERS sections
 - **`lib/db.ts`**: Structured with DATABASE INITIALIZATION, ALBUM OPERATIONS, ASSET OPERATIONS sections
+- **`components/MediaLibrary.tsx`**: Organized with STATE, CONSTANTS, HANDLERS, RENDERERS sections
+- **`components/Album.tsx`**: Organized with CONSTANTS, RENDERERS sections
+- **`app/album/[album_id]/index.tsx`**: Organized with STATE, HANDLERS, RENDERERS sections
 
 #### 🔄 **Files Needing Organization**
 - **`app/index.tsx`**: Home page with permission handling
 - **`app/album/create.tsx`**: Album creation form
-- **`app/album/[album_id]/index.tsx`**: Album detail page
 - **`components/AlbumForm.tsx`**: Album form component
 - **`lib/media.ts`**: Media library utilities
 - **`lib/schema.ts`**: Validation schemas
@@ -193,16 +198,19 @@ tidbum/
 │       ├── create.tsx           # Album creation
 │       └── [album_id]/          # Dynamic album routes
 │           ├── _layout.tsx      # Album detail layout
-│           └── index.tsx        # Album detail page
+│           └── index.tsx        # Album detail page (✅ organized)
 ├── components/                   # Reusable components
 │   ├── AlbumCard.tsx            # Album card (✅ organized)
-│   └── AlbumForm.tsx            # Album form
+│   ├── AlbumForm.tsx            # Album form
+│   ├── Album.tsx                # Album detail (✅ organized)
+│   └── MediaLibrary.tsx         # Media picker (✅ organized)
 ├── lib/                         # Utility libraries
 │   ├── db.ts                    # Database operations (✅ organized)
 │   ├── media.ts                 # Media utilities
 │   └── schema.ts                # Validation schemas
 ├── types/                       # TypeScript definitions
-│   └── album.d.ts               # Album types
+│   ├── album.d.ts               # Album types
+│   └── asset.d.ts               # Asset types (✅ organized)
 ├── hooks/                       # Custom React hooks (planned)
 │   ├── useAlbums.ts             # Album-related hooks
 │   └── useMedia.ts              # Media-related hooks
@@ -352,6 +360,15 @@ module.exports = {
 - **Created update album database operation with proper error handling**
 - **Implemented seamless navigation back to album screen after editing**
 - **Added form validation and loading states for edit functionality**
+- **Implemented MediaLibrary component with multi-selection support**
+- **Added asset filtering to prevent duplicates from database**
+- **Created responsive asset grid with 5 columns (iPhone) and 9 columns (iPad)**
+- **Implemented batch asset insertion with dynamic order indexing**
+- **Added comprehensive asset metadata storage (EXIF, GPS, etc.)**
+- **Created unified Asset interface for database and media library compatibility**
+- **Implemented performance-optimized asset rendering with React.memo**
+- **Added visual feedback for asset selection with checkmarks**
+- **Implemented transaction-based asset insertion for data integrity**
 
 ## Key Features
 
@@ -373,6 +390,9 @@ module.exports = {
 - **UUID Generation**: Secure unique identifier generation using react-native-uuid
 - **Debug Logging**: Console logging for debugging album creation process
 - **Asset Counting**: Recursive asset counting including sub-albums
+- **Batch Operations**: Transaction-based asset insertion for performance
+- **Dynamic Order Indexing**: Float-based order system for flexible sorting
+- **Comprehensive Asset Metadata**: EXIF data, GPS coordinates, and media properties storage
 
 ### Media Library Management
 - **Automatic Permission Handling**: Prompts for media library access on first app launch
@@ -380,6 +400,20 @@ module.exports = {
 - **Permission Status Management**: Comprehensive handling of granted, denied, and undetermined states
 - **User-Friendly UI**: Step-by-step instructions for enabling permissions
 - **Error Handling**: Graceful fallbacks and user-friendly error messages
+- **Multi-Selection Support**: Tap to select/deselect multiple assets
+- **Duplicate Prevention**: Filters out assets already in database
+- **Performance Optimization**: React.memo and useCallback for smooth rendering
+- **Visual Feedback**: Selection indicators and asset counts
+
+### Asset Management
+- **Responsive Grid Layout**: 5 columns on iPhone, 9 on iPad
+- **Multi-Selection Interface**: Tap assets to select with visual feedback
+- **Batch Insertion**: Insert multiple assets at once with transaction support
+- **Metadata Preservation**: Store EXIF data, GPS coordinates, and media properties
+- **Performance Optimized**: Efficient rendering with FlatList optimizations
+- **Visual Indicators**: Video play icons and selection checkmarks
+- **Duplicate Filtering**: Automatically exclude assets already in database
+- **Dynamic Ordering**: Float-based order index for flexible sorting
 
 ### Form Management & Validation
 - **React Hook Form Integration**: Efficient form state management
@@ -395,9 +429,11 @@ module.exports = {
 - **Responsive Layout**: Optimized for different screen sizes
 - **Accessibility**: Proper contrast, readable fonts, and touch targets
 - **Keyboard Handling**: Proper keyboard avoidance and input management
-- **Responsive Grid**: Adaptive layout (3 columns on iPhone, 5 on iPad)
+- **Responsive Grid**: Adaptive layout (3 columns on iPhone, 5 on iPad for albums)
 - **Precise Navigation**: Cover photo only clickable for album navigation
 - **Modern Card Design**: Rounded corners, shadows, and proper spacing
+- **Asset Grid**: Seamless edge-to-edge asset display
+- **Selection Interface**: Intuitive multi-selection with visual feedback
 
 ### Technical Features
 - **File-based routing with Expo Router**
@@ -412,6 +448,8 @@ module.exports = {
 - **UUID generation for unique identifiers**
 - **Responsive grid layout system**
 - **Consistent code organization pattern**
+- **Performance-optimized asset rendering**
+- **Transaction-based database operations**
 
 ## Database Implementation
 
@@ -425,8 +463,10 @@ module.exports = {
 - `getAllAlbums()`: Get all albums
 - `updateAlbum()`: Update album details with proper error handling
 - `deleteAlbum()`: Delete album and related assets
-- `createAsset()`: Add media assets to albums
-- `getAssetsByAlbum()`: Get all assets in an album
+- `insertAssets()`: Batch insert multiple assets with transaction support
+- `getMediaAssetsByAlbumId()`: Get all assets in an album with metadata
+- `getExistingAssetIds()`: Get asset IDs already in database for filtering
+- `getExistingAssetIdsByAlbum()`: Get asset IDs for specific album
 - `updateAssetOrder()`: Reorder assets within albums
 - `setAlbumCover()`: Set album cover image
 - `getAlbumStats()`: Get album statistics and counts
@@ -435,10 +475,12 @@ module.exports = {
 
 ### Database Schema
 - **Album Table**: Stores album information with hierarchical support
-- **Asset Table**: Stores media assets with ordering and metadata
+- **Asset Table**: Stores media assets with ordering and comprehensive metadata
 - **Foreign Key Relationships**: Proper referential integrity
 - **Automatic Timestamps**: Created and updated timestamps
 - **UUID Primary Keys**: Secure unique identifiers using react-native-uuid
+- **Float Order Indexing**: Dynamic ordering system for flexible sorting
+- **Comprehensive Metadata**: EXIF data, GPS coordinates, media properties
 
 ### Security Features
 - **Prepared Statements**: Protection against SQL injection
@@ -447,12 +489,15 @@ module.exports = {
 - **Type Safety**: Full TypeScript integration
 - **Error Handling**: Comprehensive error management
 - **UUID Generation**: Cryptographically secure unique identifiers
+- **Transaction Support**: ACID compliance for data integrity
 - **Correct SQL Methods**: Using runAsync for parameterized queries and execAsync for DDL statements
 
 ### Current Implementation Status
 - **Database Initialization**: ✅ Complete with table creation
 - **Album Creation**: ✅ Working with UUID generation and debugging
 - **Album Editing**: ✅ Complete with form pre-population and validation
+- **Asset Insertion**: ✅ Batch insertion with transaction support
+- **Asset Filtering**: ✅ Duplicate prevention from database
 - **Prepared Statements**: ✅ Implemented for security
 - **Type Safety**: ✅ Full TypeScript integration
 - **Error Handling**: ✅ Comprehensive error management
@@ -460,6 +505,8 @@ module.exports = {
 - **Asset Counting**: ✅ Recursive counting with sub-album support
 - **Album Retrieval**: ✅ Top-level albums with asset counts
 - **Code Organization**: ✅ Consistent structure in database files
+- **Performance Optimization**: ✅ Transaction-based operations
+- **Metadata Storage**: ✅ EXIF, GPS, and media properties
 
 ## UI Components
 
@@ -473,12 +520,31 @@ module.exports = {
 - **Type Safety**: Full TypeScript integration with optional totalAssets
 - **Code Organization**: ✅ Well-structured with HANDLERS and RENDERERS sections
 
+### Album Component (`components/Album.tsx`)
+- **Asset Grid Display**: Responsive grid layout identical to MediaLibrary
+- **Sub-Album Navigation**: Clickable folder items for nested albums
+- **Asset Counts**: Photo and video counts with icons
+- **Empty State**: Helpful message when no assets exist
+- **Performance Optimized**: React.memo and useCallback for smooth rendering
+- **Video Indicators**: Play icon overlay for video assets
+- **Touch Handling**: Proper touch events for asset interaction
+
+### MediaLibrary Component (`components/MediaLibrary.tsx`)
+- **Multi-Selection Interface**: Tap to select/deselect assets
+- **Visual Feedback**: Selection checkmarks and counters
+- **Duplicate Filtering**: Excludes assets already in database
+- **Performance Optimized**: React.memo and Set-based state management
+- **Responsive Grid**: 5 columns on iPhone, 9 on iPad
+- **Loading States**: Proper loading indicators
+- **Error Handling**: Graceful error states
+- **Auto-Refresh**: Updates after asset selection
+
 ### Responsive Grid Layout
-- **iPhone Layout**: 3 albums per row using `w-1/3`
-- **iPad Layout**: 5 albums per row using `w-1/5`
+- **Album Grid**: 3 albums per row on iPhone, 5 on iPad
+- **Asset Grid**: 5 assets per row on iPhone, 9 on iPad
 - **Breakpoint Detection**: 768px width for tablet detection
 - **Flexible Spacing**: Proper padding and margins for grid items
-- **FlatList Integration**: Efficient rendering for large album lists
+- **FlatList Integration**: Efficient rendering for large lists
 - **Tailwind Classes**: Pure Tailwind implementation for responsive design
 
 ## Media Library Implementation
@@ -486,9 +552,10 @@ module.exports = {
 ### Core Functions (`lib/media.ts`)
 - `checkAndRequestPermission()`: Automatic permission checking and requesting
 - `openAppSettings()`: iOS Settings integration
-- `getMediaLibrary()`: Media assets retrieval
+- `getMediaLibrary()`: Media assets retrieval with detailed metadata
 - `checkMediaLibraryPermission()`: Permission status checking
 - `requestMediaLibraryPermission()`: Manual permission requesting
+- `getAssetInfoAsync()`: Detailed asset information including EXIF and GPS
 
 ### Permission Flow
 1. **App Launch**: Automatically checks permission status
@@ -500,6 +567,13 @@ module.exports = {
 - Uses `expo-linking` for direct app settings access
 - Fallback to general settings if app-specific settings unavailable
 - User-friendly error handling with manual instructions
+
+### Asset Management Features
+- **Multi-Selection**: Tap assets to select with visual feedback
+- **Duplicate Prevention**: Filters out assets already in database
+- **Performance Optimization**: Efficient rendering with React.memo
+- **Visual Indicators**: Selection checkmarks and asset counts
+- **Batch Operations**: Select multiple assets for insertion
 
 ## Form Implementation
 
@@ -525,6 +599,28 @@ module.exports = {
 - **Type Safety**: Full TypeScript integration
 - **Clean UI**: Minimal, focused interface
 
+## Asset Management System
+
+### Asset Interface (`types/asset.d.ts`)
+- **Unified Structure**: Single interface for database and media library compatibility
+- **Comprehensive Metadata**: EXIF data, GPS coordinates, media properties
+- **Backward Compatibility**: Optional fields for database compatibility
+- **Type Safety**: Full TypeScript integration with proper typing
+
+### Asset Operations
+- **Batch Insertion**: Insert multiple assets with transaction support
+- **Duplicate Filtering**: Prevent duplicate assets from being added
+- **Dynamic Ordering**: Float-based order index for flexible sorting
+- **Metadata Preservation**: Store EXIF data, GPS coordinates, and media properties
+- **Performance Optimization**: Efficient database operations with prepared statements
+
+### Asset Display
+- **Responsive Grid**: 5 columns on iPhone, 9 on iPad
+- **Visual Indicators**: Video play icons and selection checkmarks
+- **Touch Interaction**: Tap to select/deselect assets
+- **Performance Optimized**: React.memo and useCallback for smooth rendering
+- **Consistent Layout**: Identical grid layout across MediaLibrary and Album components
+
 ## Development Workflow
 1. Use `npx expo start` to start development server
 2. Scan QR code with Expo Go app or use simulators
@@ -537,6 +633,8 @@ module.exports = {
 9. Debug logs help troubleshoot database operations
 10. Responsive grid adapts to device screen size
 11. **Consistent code organization pattern for maintainability**
+12. **Asset management with multi-selection and duplicate prevention**
+13. **Performance-optimized rendering with React.memo and useCallback**
 
 ## Recent Updates
 - **Automatic Permission Prompting**: App now automatically requests media library access on first launch
@@ -567,3 +665,13 @@ module.exports = {
 - **Section Separation**: Clear separation of imports, types, state, handlers, and renderers
 - **Maintainable Architecture**: Scalable code structure for team development
 - **Database Query Fixes**: Corrected parameterized query usage with runAsync method
+- **MediaLibrary Component**: Implemented multi-selection media picker with performance optimization
+- **Asset Grid Rendering**: Created responsive asset grid identical to MediaLibrary
+- **Duplicate Prevention**: Added filtering to exclude assets already in database
+- **Batch Asset Insertion**: Implemented transaction-based asset insertion with dynamic ordering
+- **Comprehensive Asset Metadata**: Added storage for EXIF data, GPS coordinates, and media properties
+- **Performance Optimization**: Implemented React.memo and Set-based state management
+- **Visual Feedback**: Added selection checkmarks and asset counters
+- **Unified Asset Interface**: Created single interface for database and media library compatibility
+- **Transaction Support**: Added ACID compliance for data integrity
+- **Dynamic Order Indexing**: Implemented float-based ordering system for flexible sorting

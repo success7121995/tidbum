@@ -1,3 +1,4 @@
+import { Asset } from '@/types/asset';
 import * as SQLite from 'expo-sqlite';
 import uuid from 'react-native-uuid';
 import { Album } from '../types/album';
@@ -51,13 +52,27 @@ export const initDb = async (): Promise<SQLite.SQLiteDatabase> => {
                 album_id TEXT NOT NULL,
                 name TEXT NOT NULL,
                 uri TEXT NOT NULL,
-                media_type TEXT CHECK(media_type IN ('image', 'video')) NOT NULL,
+                local_uri TEXT,
+                media_type TEXT CHECK(media_type IN ('photo', 'video')) NOT NULL,
+                media_subtypes TEXT,
                 width INTEGER,
                 height INTEGER,
                 duration INTEGER,
                 caption TEXT,
                 size INTEGER,
                 order_index FLOAT DEFAULT 1000,
+                creation_time INTEGER,
+                modification_time INTEGER,
+                orientation INTEGER,
+                is_favorite BOOLEAN DEFAULT FALSE,
+                is_hidden BOOLEAN DEFAULT FALSE,
+                exif_data TEXT,
+                location_latitude REAL,
+                location_longitude REAL,
+                location_altitude REAL,
+                location_heading REAL,
+                location_speed REAL,
+                location_timestamp INTEGER,
                 added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (album_id) REFERENCES album (album_id) ON DELETE CASCADE
@@ -170,7 +185,7 @@ export const getAlbumById = async (albumId: string): Promise<Album | null> => {
                 SELECT 
                     a.*,
                     CASE 
-                        WHEN a.media_type LIKE 'image/%' THEN 'image'
+                        WHEN a.media_type LIKE 'photo/%' THEN 'photo'
                         WHEN a.media_type LIKE 'video/%' THEN 'video'
                         ELSE 'other'
                     END as asset_type
@@ -390,6 +405,185 @@ export const deleteAlbum = async (albumId: string): Promise<string> => {
 // ASSET OPERATIONS
 // ============================================================================
 
+/**
+ * Insert multiple media assets to the database at once
+ * @param albumId - The album ID to associate with
+ * @param mediaAssets - Array of media assets to insert
+ * @param startOrderIndex - Starting order index for the assets (defaults to 1000.0)
+ * @returns Array of inserted asset IDs
+ */
+export const insertAssets = async (albumId: string, mediaAssets: Asset[], startOrderIndex: number = 1000.0): Promise<string[]> => {
+    try {
+        const db = await getDb();
+        
+        // Start transaction for better performance
+        await db.execAsync('BEGIN TRANSACTION');
+        
+        const stmt = await db.prepareAsync(`
+            INSERT OR REPLACE INTO asset (
+                asset_id, album_id, name, uri, local_uri, media_type, media_subtypes,
+                width, height, duration, caption, size, order_index, creation_time, modification_time,
+                orientation, is_favorite, is_hidden, exif_data,
+                location_latitude, location_longitude, location_altitude,
+                location_heading, location_speed, location_timestamp,
+                added_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        
+        const insertedIds: string[] = [];
+        
+        for (let i = 0; i < mediaAssets.length; i++) {
+            const asset = mediaAssets[i];
+            const orderIndex = startOrderIndex + (i * 1000.0); // Large increment for flexible sorting
+            
+            const insertParams = [
+                asset.id,
+                albumId,
+                asset.filename,
+                asset.uri,
+                asset.localUri || null,
+                asset.mediaType,
+                JSON.stringify(asset.mediaSubtypes || []),
+                asset.width,
+                asset.height,
+                asset.duration,
+                '', // caption
+                null, // size - not available from media library
+                orderIndex, // order_index - dynamic value for sorting
+                asset.creationTime,
+                asset.modificationTime,
+                asset.orientation || null,
+                asset.isFavorite ? 1 : 0,
+                asset.isHidden ? 1 : 0,
+                JSON.stringify(asset.exif || {}),
+                asset.location?.latitude || null,
+                asset.location?.longitude || null,
+                asset.location?.altitude || null,
+                asset.location?.heading || null,
+                asset.location?.speed || null,
+                asset.location?.timestamp || null,
+                new Date().toISOString(),
+                new Date().toISOString()
+            ];
+            
+            await stmt.executeAsync(insertParams);
+            insertedIds.push(asset.id);
+        }
+        
+        await stmt.finalizeAsync();
+        
+        // Commit transaction
+        await db.execAsync('COMMIT');
+        
+        return insertedIds;
+    } catch (error) {
+        // Rollback transaction on error
+        try {
+            const db = await getDb();
+            await db.execAsync('ROLLBACK');
+        } catch (rollbackError) {
+            console.error('Error rolling back transaction:', rollbackError);
+        }
+        
+        console.error('Error inserting media assets:', error);
+        throw error;
+    }
+};
+
+/**
+ * Get media assets by album ID
+ * @param albumId - The album ID
+ * @returns Array of media assets
+ */
+export const getMediaAssetsByAlbumId = async (albumId: string): Promise<any[]> => {
+    try {
+        const db = await getDb();
+        
+        const result = await db.getAllAsync(`
+            SELECT * FROM asset 
+            WHERE album_id = ? 
+            ORDER BY creation_time DESC
+        `, [albumId]);
+        
+        return result.map((row: any) => ({
+            id: row.asset_id,
+            filename: row.name,
+            uri: row.uri,
+            localUri: row.local_uri,
+            mediaType: row.media_type,
+            mediaSubtypes: JSON.parse(row.media_subtypes || '[]'),
+            width: row.width,
+            height: row.height,
+            duration: row.duration,
+            creationTime: row.creation_time,
+            modificationTime: row.modification_time,
+            orientation: row.orientation,
+            isFavorite: Boolean(row.is_favorite),
+            isHidden: Boolean(row.is_hidden),
+            exif: JSON.parse(row.exif_data || '{}'),
+            location: row.location_latitude ? {
+                latitude: row.location_latitude,
+                longitude: row.location_longitude,
+                altitude: row.location_altitude,
+                heading: row.location_heading,
+                speed: row.location_speed,
+                timestamp: row.location_timestamp
+            } : null
+        }));
+    } catch (error) {
+        console.error('Error getting media assets by album ID:', error);
+        return [];
+    }
+};
+
+/**
+ * Get all asset IDs that exist in the database
+ * @returns Array of existing asset IDs
+ */
+export const getExistingAssetIds = async (): Promise<Set<string>> => {
+    try {
+        const db = await getDb();
+        
+        const result = await db.getAllAsync(`
+            SELECT asset_id FROM asset
+        `);
+        
+        const existingIds = new Set<string>();
+        result.forEach((row: any) => {
+            existingIds.add(row.asset_id);
+        });
+        
+        return existingIds;
+    } catch (error) {
+        console.error('Error getting existing asset IDs:', error);
+        return new Set();
+    }
+};
+
+/**
+ * Get existing asset IDs for a specific album
+ * @param albumId - The album ID to check
+ * @returns Array of existing asset IDs in the album
+ */
+export const getExistingAssetIdsByAlbum = async (albumId: string): Promise<Set<string>> => {
+    try {
+        const db = await getDb();
+        
+        const result = await db.getAllAsync(`
+            SELECT asset_id FROM asset WHERE album_id = ?
+        `, [albumId]);
+        
+        const existingIds = new Set<string>();
+        result.forEach((row: any) => {
+            existingIds.add(row.asset_id);
+        });
+        
+        return existingIds;
+    } catch (error) {
+        console.error('Error getting existing asset IDs for album:', error);
+        return new Set();
+    }
+};
 
 
 // ============================================================================

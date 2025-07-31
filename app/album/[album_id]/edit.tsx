@@ -39,10 +39,6 @@ const AlbumEditScreen = () => {
                 throw new Error('Album ID is required');
             }
 
-            console.log('Updating album with ID:', album_id);
-            console.log('Update data:', data);
-            console.log('Current album:', album);
-
             const updateData = {
                 name: data.name,
                 description: data.description,
@@ -50,11 +46,7 @@ const AlbumEditScreen = () => {
                 parent_album_id: album?.parent_album_id,
             };
 
-            console.log('Update data to send:', updateData);
-
             await updateAlbum(album_id as string, updateData);
-
-            console.log('Album updated successfully');
 
             // Navigate back to the album screen with refresh parameter
             router.replace({

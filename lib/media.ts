@@ -82,8 +82,21 @@ export const getMediaLibrary = async (): Promise<MediaLibraryResult> => {
 		
 		if (status === 'granted') {
 			// Permission already granted, get assets
-			const assets = await MediaLibrary.getAssetsAsync();
-			return { success: true, assets };
+			const assetsResult = await MediaLibrary.getAssetsAsync();
+			const assetsWithDetails = await Promise.all(
+				assetsResult.assets.map(async (asset) => {
+					const details = await MediaLibrary.getAssetInfoAsync(asset.id);
+					return { ...asset, ...details };
+				})
+			);
+
+			return { 
+				success: true, 
+				assets: {
+					...assetsResult,
+					assets: assetsWithDetails
+				}
+			};
 		}
 		
 		if (status === 'denied') {
