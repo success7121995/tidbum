@@ -229,7 +229,7 @@ export const getAlbumById = async (albumId: string): Promise<Album | null> => {
                     END as asset_type
                 FROM asset a
                 WHERE a.album_id = ?
-                ORDER BY a.added_at DESC
+                ORDER BY a.order_index ASC
             `, [albumId]);
 
             // Get all sub-albums
@@ -243,9 +243,19 @@ export const getAlbumById = async (albumId: string): Promise<Album | null> => {
                 FROM album a
                 LEFT JOIN asset cover ON a.cover_asset_id = cover.asset_id
                 WHERE a.parent_album_id = ?
-                ORDER BY a.name ASC
+                ORDER BY a.order_index ASC
             `, [albumId]);
 
+
+            // Process sub-albums to include totalAssets
+            const processedSubAlbums = subAlbumsResult.map((subAlbumRow: any) => ({
+                album_id: subAlbumRow.album_id,
+                name: subAlbumRow.name,
+                description: subAlbumRow.description || '',
+                cover_asset_id: subAlbumRow.cover_asset_id || undefined,
+                parent_album_id: subAlbumRow.parent_album_id || undefined,
+                totalAssets: subAlbumRow.total_assets || 0
+            }));
 
             const album: Album = {
                 album_id: albumRow.album_id,
@@ -254,7 +264,7 @@ export const getAlbumById = async (albumId: string): Promise<Album | null> => {
                 cover_asset_id: albumRow.cover_asset_id || undefined,
                 parent_album_id: albumRow.parent_album_id || undefined,
                 assets: assetsResult as any[] || [],
-                subAlbums: subAlbumsResult as any[] || []
+                subAlbums: processedSubAlbums || []
             };
 
             return album;
@@ -294,8 +304,6 @@ export const getTopLevelAlbums = async (): Promise<(Album & { totalAssets: numbe
         
         // Convert result to Album array with cover photo info and asset counts
         const albums: (Album & { totalAssets: number })[] = [];
-
-        console.log('result', result);
 
         if (result && Array.isArray(result)) {
             for (const row of result) {
@@ -748,7 +756,6 @@ export const deleteAsset = async (assetId: string): Promise<string> => {
     try {
         const db = await getDb();
 
-        console.log('🖱️ Deleting asset:', assetId);
         // Delete the asset
         await db.runAsync('DELETE FROM asset WHERE asset_id = ?', [assetId]);
 
@@ -758,6 +765,33 @@ export const deleteAsset = async (assetId: string): Promise<string> => {
         throw error;
     }
 };
+
+/**
+ * Delete multiple assets
+ * @param assetIds - The asset IDs to delete
+ * @returns The deleted asset IDs
+ */
+export const deleteSelectedAssets = async (assetIds: string[]): Promise<string[]> => {
+    try {
+        const db = await getDb();
+
+        // Start transaction for better performance
+        await db.execAsync('BEGIN TRANSACTION');
+
+        // Delete assets
+        const placeholders = assetIds.map(() => '?').join(',');
+        await db.runAsync(`DELETE FROM asset WHERE asset_id IN (${placeholders})`, assetIds);
+
+        // Commit transaction
+        await db.execAsync('COMMIT');
+
+        return assetIds;
+    } catch (error) {
+        // Rollback transaction on error
+        console.error('Error deleting selected assets:', error);
+        throw error;
+    }
+}
 
 
 // ============================================================================

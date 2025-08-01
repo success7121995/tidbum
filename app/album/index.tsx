@@ -6,14 +6,12 @@ import AlbumCard from "../../components/AlbumCard";
 import { getTopLevelAlbums, initDb } from "../../lib/db";
 import { Album } from "../../types/album";
 
-const HomeScreen = () => {
+const HomeIndex = () => {
     // ============================================================================
     // STATE
     // ============================================================================
     const [albums, setAlbums] = useState<(Album & { totalAssets: number })[]>([]);
     const { width } = Dimensions.get('window');
-    
-    // Determine albums per row based on screen width
     const isTablet = width >= 768; // iPad breakpoint
     const albumsPerRow = isTablet ? 5 : 3;
 
@@ -98,4 +96,4 @@ const HomeScreen = () => {
     );
 };
 
-export default HomeScreen;
+export default HomeIndex;

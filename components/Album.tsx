@@ -1,7 +1,8 @@
+import { deleteSelectedAssets as deleteSelectedAssetsFromDb } from "@/lib/db";
 import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import React, { useCallback, useRef, useState } from "react";
-import { Dimensions, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+import { ActionSheetIOS, Dimensions, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
     runOnJS,
@@ -16,9 +17,11 @@ import AlbumCard from "./AlbumCard";
 interface AlbumProps {
     album: Album;
     onAssetPress?: (asset: Asset) => void;
+    onSelectionChange?: (selectedAssets: Asset[]) => void;
+    onAssetsUpdate?: (updatedAssets: Asset[]) => void;
 }
 
-const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
+const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdate }: AlbumProps) => {
     // ============================================================================
     // CONSTANTS
     // ============================================================================
@@ -36,6 +39,8 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
     const [draggedItem, setDraggedItem] = useState<{ type: 'asset' | 'album', index: number } | null>(null);
     const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
 
     // ============================================================================
     // ANIMATED VALUES
@@ -57,6 +62,99 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
     // ============================================================================
     // HANDLERS
     // ============================================================================
+
+    /**
+     * Handle album delete
+     * @param albumId - The ID of the album to delete
+     */
+    const handleAlbumDelete = (albumId: string) => {
+        const newSubAlbums = subAlbums.filter((album) => album.album_id !== albumId);
+        setSubAlbums(newSubAlbums);
+    };
+
+    /**
+     * Enter selection mode and select an asset
+     * @param assetId - The ID of the asset to select
+     */
+    const enterSelectionModeAndSelect = useCallback((assetId: string) => {
+        setIsSelectionMode(true);
+        setSelectedAssets(new Set([assetId]));
+        const selectedAsset = assets.find(asset => asset.id === assetId);
+        if (selectedAsset) {
+            onSelectionChange?.([selectedAsset]);
+        }
+    }, [assets, onSelectionChange]);
+
+    /**
+     * Exit selection mode
+     * @returns void
+     */
+    const exitSelectionMode = useCallback(() => {
+        setIsSelectionMode(false);
+        setSelectedAssets(new Set());
+        onSelectionChange?.([]);
+    }, [onSelectionChange]);
+
+    /**
+     * Toggle asset selection
+     */
+    const toggleAssetSelection = useCallback((assetId: string) => {
+        if (!isSelectionMode) return;
+
+        setSelectedAssets(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(assetId)) {
+                newSet.delete(assetId);
+            } else {
+                newSet.add(assetId);
+            }
+            
+            // Convert Set to Array for callback
+            const selectedAssetsArray = assets.filter(asset => newSet.has(asset.id));
+            onSelectionChange?.(selectedAssetsArray);
+            
+            return newSet;
+        });
+    }, [isSelectionMode, assets, onSelectionChange]);
+
+    /**
+     * Handle delete selected assets
+     */
+    const handleDeleteSelectedAssets = useCallback(() => {
+        if (selectedAssets.size === 0) return;
+
+        ActionSheetIOS.showActionSheetWithOptions({
+            message: 'Deleting these assets here won’t remove them from your media library.',
+            options: ['Delete', 'Cancel'],
+            destructiveButtonIndex: 0,
+            cancelButtonIndex: 1,
+        }, (buttonIndex) => {
+                         if (buttonIndex === 0) {
+                 handleDeleteSelectedAssetsFromDb(Array.from(selectedAssets));
+             }
+        });
+    }, [selectedAssets]);
+
+        /**
+     * Delete selected assets
+     * @param assetIds - The asset IDs to delete
+     */
+    const handleDeleteSelectedAssetsFromDb = useCallback(async (assetIds: string[]) => {
+        try {
+            const deletedAssetIds = await deleteSelectedAssetsFromDb(assetIds);
+
+            // Remove selected assets from the local state
+            setAssets(prevAssets => prevAssets.filter(asset => !deletedAssetIds.includes(asset.id)));
+            
+            // Clear selection and exit selection mode
+            setSelectedAssets(new Set());
+            setIsSelectionMode(false);
+            onSelectionChange?.([]);
+            onAssetsUpdate?.(assets.filter(asset => !deletedAssetIds.includes(asset.id)));
+        } catch (error) {
+            console.error('Error deleting selected assets:', error);
+        }
+    }, [onSelectionChange, onAssetsUpdate, assets]);
 
     /**
      * Calculate grid position from screen coordinates (worklet compatible)
@@ -93,7 +191,6 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
         
         // Update the dragged index to the new position
         setDraggedItem(prev => prev ? { ...prev, index: toIndex } : null);
-        console.log('🔄 Reordered asset from index', fromIndex, 'to', toIndex);
     }, []);
 
     /**
@@ -111,7 +208,6 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
         
         // Update the dragged index to the new position
         setDraggedItem(prev => prev ? { ...prev, index: toIndex } : null);
-        console.log('🔄 Reordered album from index', fromIndex, 'to', toIndex);
     }, []);
 
     /**
@@ -143,8 +239,6 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
             const albumSectionHeight = subAlbums.length > 0 ? 300 : 0;
             const isInAlbumSection = touchY < albumSectionHeight;
             
-            console.log('Touch detected:', { touchX, touchY, isInAlbumSection, subAlbumsLength: subAlbums.length });
-            
             if (isInAlbumSection && subAlbums.length > 0) {
                 // Touch is in album section - use simpler grid calculation for albums
                 const albumIndex = Math.floor(touchY / 120) * 3 + Math.floor(touchX / (screenWidth / 3));
@@ -159,8 +253,6 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
                     scale.value = withSpring(1.1);
                     zIndex.value = 1000;
                     draggedItemOpacity.value = withTiming(0.3);
-                    
-                    console.log('Album drag started:', albumIndex);
                 }
             } else {
                 // Touch is in assets section
@@ -176,8 +268,6 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
                     scale.value = withSpring(1.1);
                     zIndex.value = 1000;
                     draggedItemOpacity.value = withTiming(0.3);
-                    
-                    console.log('Asset drag started:', assetIndex);
                 }
             }
         })
@@ -230,8 +320,6 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
             runOnJS(setDraggedItemJS)(null);
             runOnJS(setDropTargetIndexJS)(null);
             runOnJS(setIsDraggingJS)(false);
-            
-            console.log('Drag ended');
         });
 
     // ============================================================================
@@ -262,6 +350,7 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
     const AssetItem = useCallback(({ asset, index }: { asset: Asset; index: number }) => {
         const isCurrentlyDragged = draggedItem?.type === 'asset' && draggedItem.index === index;
         const isDropTarget = dropTargetIndex === index && !isCurrentlyDragged && draggedItem?.type === 'asset';
+        const isSelected = selectedAssets.has(asset.id);
         
         const itemStyle = {
             width: itemSize,
@@ -277,7 +366,20 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
             <Animated.View style={isCurrentlyDragged ? animatedStyle : undefined}>
                 <TouchableOpacity
                     style={itemStyle}
-                    onPress={() => onAssetPress?.(asset)}
+                    onPress={() => {
+                        if (isSelectionMode) {
+                            toggleAssetSelection(asset.id);
+                        } else {
+                            onAssetPress?.(asset);
+                        }
+                    }}
+                    onLongPress={() => {
+                        if (!isSelectionMode) {
+                            enterSelectionModeAndSelect(asset.id);
+                        } else {
+                            toggleAssetSelection(asset.id);
+                        }
+                    }}
                     activeOpacity={0.7}
                 >
                     <Image 
@@ -290,6 +392,15 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
                         <View className="absolute top-1 right-1">
                             <View className="bg-black bg-opacity-50 rounded-full p-1">
                                 <Feather name="play" size={12} color="white" />
+                            </View>
+                        </View>
+                    )}
+
+                    {/* Selection indicator - MediaLibrary style */}
+                    {isSelected && (
+                        <View className="absolute top-1 right-1">
+                            <View className="bg-blue-500 rounded-full w-6 h-6 items-center justify-center border-2 border-white shadow-sm">
+                                <Feather name="check" size={12} color="white" />
                             </View>
                         </View>
                     )}
@@ -314,7 +425,7 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
                 </TouchableOpacity>
             </Animated.View>
         );
-    }, [itemSize, onAssetPress, draggedItem, dropTargetIndex, animatedStyle]);
+    }, [itemSize, onAssetPress, draggedItem, dropTargetIndex, animatedStyle, isSelectionMode, selectedAssets, toggleAssetSelection, enterSelectionModeAndSelect]);
 
     /**
      * Render asset item for FlatList
@@ -356,7 +467,7 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
                 }}>
                     <AlbumCard
                         album={subAlbum}
-                        onDelete={() => {}}
+                        onDelete={handleAlbumDelete}
                     />
                     
                     {/* Drop target indicator */}
@@ -394,6 +505,35 @@ const AlbumWithAssets = ({ album, onAssetPress }: AlbumProps) => {
     return (
         <GestureDetector gesture={gestureHandler}>
             <Animated.View className="flex-1">
+                {/* Selection mode header - MediaLibrary style */}
+                {isSelectionMode && (
+                    <View className="px-4 py-3 bg-white border-b border-gray-200">
+                        <View className="flex-row items-center justify-between">
+                            <Text className="text-gray-900 font-medium text-lg">
+                                {selectedAssets.size} {selectedAssets.size === 1 ? 'item' : 'items'} selected
+                            </Text>
+
+                            {/* Button Group */}
+                            <View className="flex-row items-center gap-2">
+                                {/* Delete Button */}
+                                <TouchableOpacity 
+                                    onPress={handleDeleteSelectedAssets}
+                                    className="px-4 py-2 bg-red-500 rounded-lg"
+                                >
+                                    <Text className="text-white font-medium">Delete</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity 
+                                    onPress={exitSelectionMode}
+                                    className="px-4 py-2 bg-blue-500 rounded-lg"
+                                >
+                                    <Text className="text-white font-medium">Cancel</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                )}
+
                 {/* Sub-albums */}
                 {subAlbums && subAlbums.length > 0 && (
                     <View className="px-4 mb-4">

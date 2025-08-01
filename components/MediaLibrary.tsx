@@ -82,33 +82,35 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
      * Fetch assets and filter out existing ones
      */
     useEffect(() => {
-        (async () => {
-            setIsLoading(true);
-            try {
-                const { assets, success } = await getMediaLibrary();
-                if (success) {
-                    const mediaAssets = assets?.assets || [];
-                    setAssets(mediaAssets);
-                    
-                    // Get existing asset IDs from database
-                    const existingAssetIds = await getExistingAssetIds();
-                    
-                    // Filter out assets that already exist in database
-                    const newAssets = mediaAssets.filter(asset => !existingAssetIds.has(asset.id));
-                    setFilteredAssets(newAssets);
-                    
-                } else {
-                    console.error('Failed to retrieve media library assets');
+        if (visible) {
+            (async () => {
+                setIsLoading(true);
+                try {
+                    const { assets, success } = await getMediaLibrary();
+                    if (success) {
+                        const mediaAssets = assets?.assets || [];
+                        setAssets(mediaAssets);
+                        
+                        // Get existing asset IDs from database
+                        const existingAssetIds = await getExistingAssetIds();
+                        
+                        // Filter out assets that already exist in database
+                        const newAssets = mediaAssets.filter(asset => !existingAssetIds.has(asset.id));
+                        setFilteredAssets(newAssets);
+                        
+                    } else {
+                        console.error('Failed to retrieve media library assets');
+                        setFilteredAssets([]);
+                    }
+                } catch (error) {
+                    console.error('Error fetching and filtering assets:', error);
                     setFilteredAssets([]);
+                } finally {
+                    setIsLoading(false);
                 }
-            } catch (error) {
-                console.error('Error fetching and filtering assets:', error);
-                setFilteredAssets([]);
-            } finally {
-                setIsLoading(false);
-            }
-        })();
-    }, []);
+            })();
+        }
+    }, [visible]);
 
     /**
      * Toggle asset selection

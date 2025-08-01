@@ -1,5 +1,5 @@
-import AntDesign from '@expo/vector-icons/AntDesign';
 import Feather from '@expo/vector-icons/Feather';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { router, Stack } from "expo-router";
 import { TouchableOpacity } from "react-native";
 
@@ -15,8 +15,8 @@ const AlbumLayout = () => {
 					headerShown: true,
 					headerTitle: 'Tidbum',
 					headerRight: () => (
-						<TouchableOpacity onPress={() => router.push('/album/create')}>
-							<AntDesign name="search1" size={24} color="black" />
+						<TouchableOpacity onPress={() => router.push('/setting')}>
+							<FontAwesome6 name="gear" size={20} color="black" />
 						</TouchableOpacity>
 					),
 				}}

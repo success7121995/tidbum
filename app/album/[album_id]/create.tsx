@@ -11,7 +11,6 @@ const CreateAlbumScreen = () => {
 	// ============================================================================
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { album_id } = useLocalSearchParams();
-	console.log('album_id', album_id);
 
 	// ============================================================================
 	// HANDLERS

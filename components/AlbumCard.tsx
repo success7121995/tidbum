@@ -5,7 +5,7 @@ import { deleteAlbum } from "../lib/db";
 import { Album } from "../types/album";
 
 interface AlbumCardProps {
-    album: Album & { totalAssets?: number };
+    album: Album;
     onDelete?: (albumId: string) => void;
 }
 
@@ -112,7 +112,7 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
                     {album.name}
                 </Text>
                 <Text className="text-xs text-gray-600">
-                    {album.totalAssets || 0} {album.totalAssets && album.totalAssets > 2 ? 'assets' : 'asset'}
+                    {album.totalAssets || 0} {album.totalAssets === 1 ? 'asset' : 'assets'}
                 </Text>
             </View>
         </Animated.View>

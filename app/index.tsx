@@ -2,10 +2,10 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import {
-	checkAndRequestPermission,
-	openAppSettings,
-	PermissionStatus,
-	requestMediaLibraryPermission
+    checkAndRequestPermission,
+    openAppSettings,
+    PermissionStatus,
+    requestMediaLibraryPermission
 } from "../lib/media";
 
 export default function Index() {
@@ -31,7 +31,6 @@ export default function Index() {
 			}
 		} catch (error) {
 			console.error('Error in initial permission check:', error);
-			setPermissionStatus({ status: 'denied', isRequesting: false });
 		}
 	};
 

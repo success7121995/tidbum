@@ -21,6 +21,7 @@ interface AlbumSliderProps {
     onAssetChange: (index: number) => void;
     onClose: () => void;
     onDelete?: (asset: Asset) => void;
+    onAssetsUpdate?: (updatedAssets: Asset[]) => void;
 }
 
 const AlbumSlider = ({ 
@@ -30,6 +31,7 @@ const AlbumSlider = ({
     onAssetChange, 
     onClose,
     onDelete,
+    onAssetsUpdate,
 }: AlbumSliderProps) => {
     // ============================================================================
     // STATE
@@ -76,6 +78,11 @@ const AlbumSlider = ({
             savedTranslateY.value = 0;
         }
     }, [visible, selectedAssetIndex]);
+
+    // Sync local assets with props when they change
+    useEffect(() => {
+        setUpdatedAssets(assets);
+    }, [assets]);
 
     useFocusEffect(
         useCallback(() => {
@@ -179,10 +186,11 @@ const AlbumSlider = ({
             
             setUpdatedAssets(updatedAssets.filter(a => a.asset_id !== asset.asset_id));
             onDelete?.(asset);
+            onAssetsUpdate?.(updatedAssets.filter(a => a.asset_id !== asset.asset_id));
         } catch (error) {
             console.error('Error deleting asset:', error);
         }
-    }, [updatedAssets]);
+    }, [updatedAssets, onDelete, onAssetsUpdate]);
 
     // ============================================================================
     // GESTURE HANDLERS
@@ -367,7 +375,6 @@ const AlbumSlider = ({
                                 key={index}
                                 onPress={() => {
                                     const targetIndex = index;
-                                    console.log('🖱️ Thumbnail pressed: index', index, '-> targetIndex:', targetIndex);
                                     translateX.value = withSpring(-targetIndex * ITEM_WIDTH, {
                                         damping: 20,
                                         stiffness: 200,
