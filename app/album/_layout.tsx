@@ -2,8 +2,13 @@ import Feather from '@expo/vector-icons/Feather';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { router, Stack } from "expo-router";
 import { TouchableOpacity } from "react-native";
+import { useSetting } from "../../constant/SettingProvider";
+import { getLanguageText, Language } from "../../lib/lang";
 
 const AlbumLayout = () => {
+	const { language } = useSetting();
+	const text = getLanguageText(language as Language);
+
 	return (
 		<Stack screenOptions={{
 			headerShown: false,
@@ -25,7 +30,7 @@ const AlbumLayout = () => {
 				name="create"
 				options={{
 					headerShown: true,
-					headerTitle: 'Create Album',
+					headerTitle: text.createAlbum,
 					headerLeft: () => (
 						<TouchableOpacity onPress={() => router.back()}>
 							<Feather name="chevron-left" size={32} color="black" />

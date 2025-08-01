@@ -1,4 +1,6 @@
+import { useSetting } from "@/constant/SettingProvider";
 import { getExistingAssetIds } from "@/lib/db";
+import { getLanguageText, Language } from "@/lib/lang";
 import { getMediaLibrary } from "@/lib/media";
 import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
@@ -64,6 +66,12 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
     const insets = useSafeAreaInsets();
     const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
+
+    // ============================================================================
+    // CONTEXT
+    // ============================================================================
+    const { language } = useSetting();
+    const text = getLanguageText(language as Language);
 
     // ============================================================================
     // CONSTANTS
@@ -166,16 +174,16 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
         >
             <View className="flex-row items-center">
                 <Text className="text-lg font-semibold text-gray-900">
-                    Media Library
+                    {text.mediaLibrary}
                 </Text>
                 {selectedAssetIds.size > 0 && (
                     <Text className="ml-2 text-sm text-blue-500 font-medium">
-                        ({selectedAssetIds.size} selected)
+                        ({selectedAssetIds.size} {text.selected})
                     </Text>
                 )}
                 {!isLoading && (
                     <Text className="ml-2 text-xs text-gray-500">
-                        {filteredAssets.length} available
+                        {filteredAssets.length} {text.available}
                     </Text>
                 )}
             </View>
@@ -186,7 +194,7 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
                 <Feather name="x" size={24} color="black" />
             </Text>
         </View>
-    ), [selectedAssetIds.size, filteredAssets.length, insets.top, handleClose, isLoading]);
+    ), [selectedAssetIds.size, filteredAssets.length, insets.top, handleClose, isLoading, text]);
 
     return (
         <Modal visible={visible} animationType="slide">

@@ -1,9 +1,11 @@
 import { deleteAlbum, insertAssets } from "@/lib/db";
+import { getLanguageText, Language } from "@/lib/lang";
 import { Album } from "@/types/album";
 import { Asset } from "@/types/asset";
 import { router } from "expo-router";
 import { createContext, useCallback, useContext } from "react";
 import { ActionSheetIOS } from "react-native";
+import { useSetting } from "./SettingProvider";
 
 // ============================================================================
 // TYPES
@@ -46,6 +48,9 @@ export const useAlbum = () => {
 // PROVIDER
 // ============================================================================
 const AlbumProvider = ({ children }: { children: React.ReactNode }) => {
+    const { language } = useSetting();
+    const text = getLanguageText(language as Language);
+
     /**
      * Handle edit album
      * @param album - The album to edit
@@ -77,8 +82,8 @@ const AlbumProvider = ({ children }: { children: React.ReactNode }) => {
      */
     const handleAddAssets = useCallback((albumId: string, parentAlbumId?: string, onMediaSelect?: () => void) => {
         ActionSheetIOS.showActionSheetWithOptions({
-            message: 'Add media or a new folder',
-            options: ['Add media', 'Add a new folder', 'Cancel'],
+            message: text.addMediaOrNewFolder,
+            options: [text.addMedia, text.addNewFolder, text.cancel],
             cancelButtonIndex: 2,
         }, (selectedIndex) => {
             if (selectedIndex === 0) {

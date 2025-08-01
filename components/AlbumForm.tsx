@@ -1,3 +1,4 @@
+import { getLanguageText, Language } from '@/lib/lang';
 import { zodResolver } from '@hookform/resolvers/zod';
 import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -10,6 +11,7 @@ import {
 	TouchableOpacity,
 	View
 } from 'react-native';
+import { useSetting } from '../constant/SettingProvider';
 import { AlbumFormData, albumSchema } from '../lib/schema';
 
 interface AlbumFormProps {
@@ -25,6 +27,9 @@ const AlbumForm = ({
 	initialData = {}, 
 	isSubmitting = false 
 }: AlbumFormProps) => {
+	const { language } = useSetting();
+	const text = getLanguageText(language as Language);
+
 	const {
 		control,
 		handleSubmit,
@@ -45,7 +50,7 @@ const AlbumForm = ({
 			await onSubmit(data);
 			reset();
 		} catch (error) {
-			Alert.alert('Error', 'Failed to save album. Please try again.');
+			Alert.alert(text.error, text.failedToSaveAlbum);
 		}
 	};
 
@@ -59,7 +64,7 @@ const AlbumForm = ({
 				{/* Album Name */}
 				<View>
 					<Text className="text-slate-700 font-semibold mb-2">
-						Album Name<Text className="text-red-500">*</Text>
+						{text.albumName}<Text className="text-red-500">*</Text>
 					</Text>
 					<Controller
 						control={control}
@@ -69,7 +74,7 @@ const AlbumForm = ({
 								className={`px-4 py-3 rounded-xl border ${
 									errors.name ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-white'
 								}`}
-								placeholder="Enter album name"
+								placeholder={text.enterAlbumName}
 								onChangeText={onChange}
 								onBlur={onBlur}
 								value={value}
@@ -87,7 +92,7 @@ const AlbumForm = ({
 				{/* Description */}
 				<View className="mt-4">
 					<Text className="text-slate-700 font-semibold mb-2">
-						Description
+						{text.enterAlbumDescription}
 					</Text>
 					<Controller
 						control={control}
@@ -95,7 +100,7 @@ const AlbumForm = ({
 						render={({ field: { onChange, onBlur, value } }) => (
 							<TextInput
 								className="px-4 py-3 rounded-xl border border-slate-300 bg-white"
-								placeholder="Add a description (optional)"
+								placeholder={text.enterAlbumDescription}
 								onChangeText={onChange}
 								onBlur={onBlur}
 								value={value}
@@ -126,7 +131,7 @@ const AlbumForm = ({
 					disabled={!isValid || isSubmitting}
 				>
 					<Text className="text-white text-center font-semibold text-lg">
-						{isSubmitting ? 'Saving...' : 'Save Album'}
+						{isSubmitting ? text.saving : text.saveAlbum}
 					</Text>
 				</TouchableOpacity>
 
@@ -137,7 +142,7 @@ const AlbumForm = ({
 						disabled={isSubmitting}
 					>
 						<Text className="text-slate-600 text-center font-medium">
-							Cancel
+							{text.cancel}
 						</Text>
 					</TouchableOpacity>
 				)}

@@ -1,11 +1,13 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
+import { useSetting } from "../constant/SettingProvider";
+import { getLanguageText, Language } from "../lib/lang";
 import {
-    checkAndRequestPermission,
-    openAppSettings,
-    PermissionStatus,
-    requestMediaLibraryPermission
+	checkAndRequestPermission,
+	openAppSettings,
+	PermissionStatus,
+	requestMediaLibraryPermission
 } from "../lib/media";
 
 export default function Index() {
@@ -13,6 +15,9 @@ export default function Index() {
 		status: 'loading',
 		isRequesting: false
 	});
+
+	const { language } = useSetting();
+	const text = getLanguageText(language as Language);
 
 	useEffect(() => { 
 		// Automatically check and request permission on app launch
@@ -68,7 +73,7 @@ export default function Index() {
 			<View className="flex-1 bg-slate-50">
 				<View className="flex-1 justify-center items-center px-6 py-10">
 					<View className="w-10 h-10 rounded-full border-3 border-slate-200 border-t-blue-500 mb-4" />
-					<Text className="text-base text-slate-500 font-medium">Checking permissions...</Text>
+					<Text className="text-base text-slate-500 font-medium">{text.checkingPermissions}</Text>
 				</View>
 			</View>
 		);
@@ -87,23 +92,23 @@ export default function Index() {
 				</View>
 				
 				<Text className="text-2xl font-bold text-slate-800 text-center mb-4">
-					Media Access Required
+					{text.mediaAccessRequired}
 				</Text>
 				
 				<Text className="text-base text-slate-500 text-center leading-6 mb-8 max-w-80">
-					TidBum needs access to your photos and videos to help you organize and manage your media library.
+					{text.mediaAccessDescription}
 				</Text>
 				
 				<View className="self-stretch mb-8">
 					<Text className="text-lg font-semibold text-slate-800 mb-4 text-center">
-						To enable access:
+						{text.toEnableAccess}
 					</Text>
 					<View className="flex-row items-center mb-3 px-4">
 						<Text className="w-6 h-6 rounded-full bg-blue-500 text-white text-center leading-6 text-sm font-semibold mr-3">
 							1
 						</Text>
 						<Text className="text-base text-slate-600 flex-1">
-							Tap "Open Settings" below
+							{text.tapOpenSettings}
 						</Text>
 					</View>
 					<View className="flex-row items-center mb-3 px-4">
@@ -111,7 +116,7 @@ export default function Index() {
 							2
 						</Text>
 						<Text className="text-base text-slate-600 flex-1">
-							Find "TidBum" in the list
+							{text.findTidBum}
 						</Text>
 					</View>
 					<View className="flex-row items-center mb-3 px-4">
@@ -119,7 +124,7 @@ export default function Index() {
 							3
 						</Text>
 						<Text className="text-base text-slate-600 flex-1">
-							Enable "Photos and Videos"
+							{text.enablePhotosVideos}
 						</Text>
 					</View>
 				</View>
@@ -130,7 +135,7 @@ export default function Index() {
 						onPress={handleOpenSettings}
 					>
 						<Text className="text-white text-base font-semibold">
-							Open Settings
+							{text.openSettings}
 						</Text>
 					</TouchableOpacity>
 					
@@ -140,7 +145,7 @@ export default function Index() {
 						disabled={permissionStatus.isRequesting}
 					>
 						<Text className="text-slate-500 text-base font-medium">
-							{permissionStatus.isRequesting ? 'Requesting...' : 'Try Again'}
+							{permissionStatus.isRequesting ? text.requesting : text.tryAgain}
 						</Text>
 					</TouchableOpacity>
 				</View>

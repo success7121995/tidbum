@@ -1,7 +1,9 @@
+import { getLanguageText, Language } from '@/lib/lang';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import AlbumForm from '../../components/AlbumForm';
+import { useSetting } from '../../constant/SettingProvider';
 import { createAlbum } from '../../lib/db';
 import { CreateAlbumFormData } from '../../lib/schema';
 
@@ -10,7 +12,8 @@ const CreateAlbumScreen = () => {
 	// STATE
 	// ============================================================================
 	const [isSubmitting, setIsSubmitting] = useState(false);
-
+	const { language } = useSetting();
+	const text = getLanguageText(language as Language);
 	// ============================================================================
 	// HANDLERS
 	// ============================================================================
@@ -39,7 +42,7 @@ const CreateAlbumScreen = () => {
 				},
 			});
 		} catch (error) {
-			Alert.alert('Error', 'Failed to create album. Please try again.');
+			Alert.alert(text.error, text.failedToCreateAlbum);
 			throw error;
 		} finally {
 			setIsSubmitting(false);
@@ -62,10 +65,10 @@ const CreateAlbumScreen = () => {
 				{/* Header */}
 				<View className="mb-8">
 					<Text className="text-3xl font-bold text-slate-800 mb-2">
-						Create Album
+						{text.createAlbum}
 					</Text>
 					<Text className="text-slate-600 text-base">
-						Organize your photos and videos into beautiful albums
+						{text.createAlbumSubtitle}
 					</Text>
 				</View>
 

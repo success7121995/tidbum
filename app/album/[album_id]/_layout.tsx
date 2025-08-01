@@ -32,7 +32,7 @@ const AlbumLayout = () => {
 			name="edit"
 			options={{
 				headerShown: true,
-				headerTitle: 'Edit Album',
+				headerTitle: '',
 				headerLeft: () => (
 					<TouchableOpacity onPress={() => router.back()}>
 						<Feather name="chevron-left" size={32} color="black" />

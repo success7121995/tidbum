@@ -1,5 +1,7 @@
 import AlbumForm from "@/components/AlbumForm";
+import { useSetting } from "@/constant/SettingProvider";
 import { getAlbumById, updateAlbum } from "@/lib/db";
+import { getLanguageText, Language } from "@/lib/lang";
 import { CreateAlbumFormData } from "@/lib/schema";
 import { type Album } from "@/types/album";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -10,6 +12,8 @@ const AlbumEditScreen = () => {
     const { album_id } = useLocalSearchParams();
     const [album, setAlbum] = useState<Album | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { language } = useSetting();
+    const text = getLanguageText(language as Language);
 
     // ============================================================================
     // HANDLERS
@@ -52,7 +56,7 @@ const AlbumEditScreen = () => {
             router.back();
         } catch (error) {
             console.error('Error updating album:', error);
-            Alert.alert('Error', 'Failed to update album. Please try again.');
+            Alert.alert(text.error, text.failedToSaveAlbum);
             throw error;
         } finally {
             setIsSubmitting(false);
@@ -73,7 +77,7 @@ const AlbumEditScreen = () => {
     if (!album) {
         return (
             <View className="flex-1 bg-white px-4 py-4">
-                <Text>Loading...</Text>
+                <Text>{text.loadingAlbum}</Text>
             </View>
         );
     }
@@ -84,10 +88,10 @@ const AlbumEditScreen = () => {
                 {/* Header */}
                 <View className="mb-8">
                     <Text className="text-3xl font-bold text-slate-800 mb-2">
-                        Edit Album
+                        {text.editAlbum}
                     </Text> 
                     <Text className="text-slate-600 text-base">
-                        Update your album details
+                        {text.updateAlbumDetails}
                     </Text>
                 </View>
 

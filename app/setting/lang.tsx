@@ -1,47 +1,62 @@
+import { Language, getLanguageText } from "@/lib/lang";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useSetting } from "../../constant/SettingProvider";
+import { updateSettings } from "../../lib/db";
 
 const LangIndex = () => {
-	const router = useRouter();
-	const [selectedLanguage, setSelectedLanguage] = useState("繁體中文");
+	// ============================================================================
+	// STATE
+	// ============================================================================
+	const { language, setLanguage } = useSetting();
+	const [selectedLanguage, setSelectedLanguage] = useState<Language>(language as Language);
+	const text = getLanguageText(language as Language);
 
-	const languages = [
-		{ id: "zh-TW", name: "繁體中文", nativeName: "繁體中文" },
-		{ id: "zh-CN", name: "簡體中文", nativeName: "简体中文" },
-		{ id: "en", name: "English", nativeName: "English" },
-	];
+	// Update selected language when language changes
+	useEffect(() => {
+		setSelectedLanguage(language as Language);
+	}, [language]);
 
-	const handleLanguageSelect = (language: string) => {
-		setSelectedLanguage(language);
-		// Here you would typically update the app's language setting
-		// and trigger a re-render of the app with the new language
-		
-		// Navigate back to settings after selection
-		setTimeout(() => {
-			router.back();
-		}, 300);
+	// ============================================================================
+	// MAPPING
+	// ============================================================================
+	const languageMapping = {
+		[Language.EN]: "English",
+		[Language.ZH_TW]: "繁體中文",
+		[Language.ZH_CN]: "简体中文",
+	}
+
+	// ============================================================================
+	// HANDLERS
+	// ============================================================================
+	const handleLanguageSelect = async (language: string) => {
+		try {
+			await updateSettings({ lang: language as Language });
+			setLanguage(language as Language);
+		} catch (error) {
+			console.error(error);
+			Alert.alert(text.error, text.failedToUpdateLanguage);
+		}
 	};
 
-	const LanguageItem = ({ language }: { language: typeof languages[0] }) => (
+
+	// ============================================================================
+	// RENDER
+	// ============================================================================
+	const LanguageItem = ({ languageItem }: { languageItem: Language }) => (
 		<TouchableOpacity
 			className={`flex-row items-center justify-between py-4 px-4 border-b border-gray-100 ${
-				selectedLanguage === language.name ? "bg-blue-50" : ""
+				languageItem === selectedLanguage ? "bg-blue-50" : ""
 			} active:bg-gray-50`}
-			onPress={() => handleLanguageSelect(language.name)}
+			onPress={() => handleLanguageSelect(languageItem)}
 		>
 			<View className="flex-1">
 				<Text className="text-base font-medium text-gray-900">
-					{language.nativeName}
+					{languageMapping[languageItem]}
 				</Text>
-				{language.nativeName !== language.name && (
-					<Text className="text-sm text-gray-500 mt-1">
-						{language.name}
-					</Text>
-				)}
 			</View>
-			{selectedLanguage === language.name && (
+			{languageItem === selectedLanguage && (
 				<Ionicons name="checkmark" size={20} color="#007AFF" />
 			)}
 		</TouchableOpacity>
@@ -54,21 +69,9 @@ const LangIndex = () => {
 			<ScrollView className="flex-1">
 				<View className="mt-4 mx-4">
 					<View className="bg-white rounded-lg overflow-hidden border border-gray-100">
-						{languages.map((language, index) => (
-							<LanguageItem key={language.id} language={language} />
+						{Object.values(Language).map((languageItem, index) => (
+							<LanguageItem key={languageItem} languageItem={languageItem} />
 						))}
-					</View>
-				</View>
-
-				{/* Info Section */}
-				<View className="mt-6 mx-4">
-					<View className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-						<View className="flex-row items-start">
-							<Ionicons name="information-circle" size={20} color="#007AFF" />
-							<Text className="text-sm text-blue-800 ml-2 flex-1">
-								選擇語言後，應用程式將重新啟動以套用新的語言設定。
-							</Text>
-						</View>
 					</View>
 				</View>
 			</ScrollView>

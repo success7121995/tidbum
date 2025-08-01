@@ -2,7 +2,9 @@ import AlbumWithAssets from "@/components/Album";
 import AlbumSlider from "@/components/AlbumSlider";
 import MediaLibrary from "@/components/MediaLibrary";
 import { useAlbum } from "@/constant/AlbumProvider";
+import { useSetting } from "@/constant/SettingProvider";
 import { getAlbumById } from "@/lib/db";
+import { getLanguageText, Language } from "@/lib/lang";
 import { type Album } from "@/types/album";
 import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
@@ -36,6 +38,9 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 		handleSelectAssets, 
 		handleAlbumDeleteActionSheet 
 	} = useAlbum();
+
+	const { language } = useSetting();
+	const text = getLanguageText(language as Language);
 
 	// ============================================================================
 	// HANDLERS
@@ -174,7 +179,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	if (isLoading) {
 		return (
 			<View className="flex-1 bg-white items-center justify-center">
-				<Text className="text-gray-500">Loading album...</Text>
+				<Text className="text-gray-500">{text.loadingAlbum}</Text>
 			</View>
 		);
 	}
@@ -182,7 +187,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	if (!album) {
 		return (
 			<View className="flex-1 bg-white items-center justify-center">
-				<Text className="text-gray-500">Album not found</Text>
+				<Text className="text-gray-500">{text.albumNotFound}</Text>
 			</View>
 		);
 	}
@@ -204,7 +209,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 							<View className="flex-row items-center gap-1">
 								<Feather name="image" size={16} color="#6B7280" />
 								<Text className="text-sm text-gray-600">
-									{album.assets?.filter(asset => asset.media_type === 'photo').length || 0}  {album.assets && album.assets.filter(asset => asset.media_type === 'photo').length > 1 ? 'photos' : 'photo'}
+									{album.assets?.filter(asset => asset.media_type === 'photo').length || 0}  {album.assets && album.assets.filter(asset => asset.media_type === 'photo').length > 1 ? text.photos : text.photo}
 								</Text>
 							</View>
 
@@ -212,7 +217,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 							<View className="flex-row items-center gap-1">
 								<Feather name="video" size={16} color="#6B7280" />
 								<Text className="text-sm text-gray-600">
-									{album.assets?.filter(asset => asset.media_type === 'video').length || 0}  {album.assets && album.assets.filter(asset => asset.media_type === 'video').length > 1 ? 'videos' : 'video'}
+									{album.assets?.filter(asset => asset.media_type === 'video').length || 0}  {album.assets && album.assets.filter(asset => asset.media_type === 'video').length > 1 ? text.videos : text.video}
 								</Text>
 							</View>
 						</View>
@@ -247,7 +252,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 					</View>
 				</View>
 
-				<Text className="text-sm text-gray-600">{album.description || 'No description'}</Text>
+				<Text className="text-sm text-gray-600">{album.description || text.noDescription}</Text>
 			</View>
 
 			{/* Album content */}

@@ -11,6 +11,8 @@ import Animated, {
     withSpring,
     withTiming
 } from "react-native-reanimated";
+import { useSetting } from "../constant/SettingProvider";
+import { getLanguageText, Language } from "../lib/lang";
 import { type Album } from "../types/album";
 import AlbumCard from "./AlbumCard";
 
@@ -41,6 +43,12 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const [isDragging, setIsDragging] = useState(false);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
+
+    // ============================================================================
+    // CONTEXT
+    // ============================================================================
+    const { language } = useSetting();
+    const text = getLanguageText(language as Language);
 
     // ============================================================================
     // ANIMATED VALUES
@@ -124,8 +132,8 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         if (selectedAssets.size === 0) return;
 
         ActionSheetIOS.showActionSheetWithOptions({
-            message: 'Deleting these assets here won’t remove them from your media library.',
-            options: ['Delete', 'Cancel'],
+            message: text.deletingAssetMessage,
+            options: [text.delete, text.cancel],
             destructiveButtonIndex: 0,
             cancelButtonIndex: 1,
         }, (buttonIndex) => {
@@ -133,7 +141,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                  handleDeleteSelectedAssetsFromDb(Array.from(selectedAssets));
              }
         });
-    }, [selectedAssets]);
+    }, [selectedAssets, text]);
 
         /**
      * Delete selected assets
@@ -510,7 +518,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                     <View className="px-4 py-3 bg-white border-b border-gray-200">
                         <View className="flex-row items-center justify-between">
                             <Text className="text-gray-900 font-medium text-lg">
-                                {selectedAssets.size} {selectedAssets.size === 1 ? 'item' : 'items'} selected
+                                {selectedAssets.size} {selectedAssets.size === 1 ? text.item : text.items} {text.selected}
                             </Text>
 
                             {/* Button Group */}
@@ -520,14 +528,14 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                                     onPress={handleDeleteSelectedAssets}
                                     className="px-4 py-2 bg-red-500 rounded-lg"
                                 >
-                                    <Text className="text-white font-medium">Delete</Text>
+                                    <Text className="text-white font-medium">{text.delete}</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity 
                                     onPress={exitSelectionMode}
                                     className="px-4 py-2 bg-blue-500 rounded-lg"
                                 >
-                                    <Text className="text-white font-medium">Cancel</Text>
+                                    <Text className="text-white font-medium">{text.cancel}</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -538,7 +546,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                 {subAlbums && subAlbums.length > 0 && (
                     <View className="px-4 mb-4">
                         <Text className="text-lg font-semibold text-gray-900 mb-3">
-                            Folders ({subAlbums.length})
+                            {text.folders} ({subAlbums.length})
                         </Text>
                         <FlatList
                             ref={albumListRef}
@@ -567,7 +575,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                     <>
                         <View className="px-4 mb-3">
                             <Text className="text-lg font-semibold text-gray-900">
-                                Media ({assets.length})
+                                {text.media} ({assets.length})
                             </Text>
                         </View>
                         <FlatList
@@ -590,10 +598,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                     <View className="flex-1 items-center justify-center px-4">
                         <Feather name="image" size={48} color="#D1D5DB" />
                         <Text className="text-gray-500 text-center mt-4">
-                            No media in this album yet
+                            {text.noMediaInAlbum}
                         </Text>
                         <Text className="text-gray-400 text-center text-sm mt-2">
-                            Tap the + button to add photos and videos
+                            {text.tapToAdd}
                         </Text>
                     </View>
                 )}

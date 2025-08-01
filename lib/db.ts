@@ -86,12 +86,11 @@ export const initDb = async (): Promise<SQLite.SQLiteDatabase> => {
         // Create setting table
         await db.execAsync(`
             CREATE TABLE IF NOT EXISTS setting (
-                lang TEXT,
-                caption_open BOOLEAN DEFAULT 0
+                lang TEXT DEFAULT NULL,
+                caption_open BOOLEAN DEFAULT 0,
+                theme TEXT NOT NULL CHECK(theme IN ('light', 'dark')) DEFAULT 'light'
             );
         `);
-
-        
 
         return db;
     } catch (error) {
@@ -826,8 +825,9 @@ export const getSettings = async (): Promise<Settings> => {
 
 /**
  * Update settings
+ * @param settings - Partial settings object, only provided fields will be updated
  */
-export const updateSettings = async (settings: Settings): Promise<void> => {
+export const updateSettings = async (settings: Partial<Settings>): Promise<void> => {
     try {
         const db = await getDb();
 
@@ -836,17 +836,28 @@ export const updateSettings = async (settings: Settings): Promise<void> => {
         const hasSettings = (existingSettings[0] as any)?.count > 0;
 
         if (hasSettings) {
-            // Update existing settings
-            const stmt = await db.prepareAsync(
-                'UPDATE setting SET lang = ?, caption_open = ?'
-            );
-            await stmt.executeAsync([
-                settings.lang || 'en',
-                settings.caption_open || false,
-            ]);
-            await stmt.finalizeAsync();
+            // Build dynamic update query based on provided fields
+            const fields: string[] = [];
+            const values: any[] = [];
+
+            if (settings.lang !== undefined) {
+                fields.push('lang = ?');
+                values.push(settings.lang);
+            }
+
+            if (settings.caption_open !== undefined) {
+                fields.push('caption_open = ?');
+                values.push(settings.caption_open);
+            }
+
+            if (fields.length > 0) {
+                const query = `UPDATE setting SET ${fields.join(', ')}`;
+                const stmt = await db.prepareAsync(query);
+                await stmt.executeAsync(values);
+                await stmt.finalizeAsync();
+            }
         } else {
-            // Insert new settings
+            // Insert new settings with provided values and defaults
             const stmt = await db.prepareAsync(
                 'INSERT INTO setting (lang, caption_open) VALUES (?, ?)'
             );

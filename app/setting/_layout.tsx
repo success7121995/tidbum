@@ -1,8 +1,12 @@
+import { getLanguageText, Language } from "@/lib/lang";
 import Feather from "@expo/vector-icons/Feather";
 import { router, Stack } from "expo-router";
 import { TouchableOpacity } from "react-native";
+import { useSetting } from "../../constant/SettingProvider";
 
 const SettingLayout = () => {
+	const { language } = useSetting();
+	const text = getLanguageText(language as Language);
 	return (
         <Stack
             screenOptions={{
@@ -12,7 +16,7 @@ const SettingLayout = () => {
         >
             <Stack.Screen name="index" options={{
                 headerShown: true,
-                headerTitle: 'Setting',
+                headerTitle: text.setting,
                 headerLeft: () => (
                     <TouchableOpacity onPress={() => router.back()}>
                         <Feather name="chevron-left" size={32} color="black" />
@@ -21,7 +25,7 @@ const SettingLayout = () => {
             }} />
             <Stack.Screen name="lang" options={{
                 headerShown: true,
-                headerTitle: 'Language',
+                headerTitle: text.languageSetting,
                 headerLeft: () => (
                     <TouchableOpacity onPress={() => router.back()}>
                         <Feather name="chevron-left" size={32} color="black" />

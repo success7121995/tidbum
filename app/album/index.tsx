@@ -1,9 +1,11 @@
+import { useSetting } from '@/constant/SettingProvider';
+import { getLanguageText, Language } from '@/lib/lang';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Dimensions, FlatList, Text, TouchableOpacity, View } from "react-native";
 import AlbumCard from "../../components/AlbumCard";
-import { getTopLevelAlbums, initDb } from "../../lib/db";
+import { clearAllTables, deleteAllTables, getTopLevelAlbums, initDb } from "../../lib/db";
 import { Album } from "../../types/album";
 
 const HomeIndex = () => {
@@ -14,6 +16,9 @@ const HomeIndex = () => {
     const { width } = Dimensions.get('window');
     const isTablet = width >= 768; // iPad breakpoint
     const albumsPerRow = isTablet ? 5 : 3;
+    const [isTesting, _] = useState(false);
+    const { language } = useSetting();
+    const text = getLanguageText(language as Language);
 
     // ============================================================================
     // HANDLERS
@@ -25,6 +30,12 @@ const HomeIndex = () => {
     useFocusEffect(
         useCallback(() => {
             (async () => {
+
+                if (isTesting) {
+                    await deleteAllTables();
+                    await clearAllTables();
+                }
+
                 await initDb();
                 const albums = await getTopLevelAlbums();
                 setAlbums(albums);
@@ -89,7 +100,7 @@ const HomeIndex = () => {
                 </View>
             ) : (
                 <View className="flex-1 items-center justify-center">
-                    <Text>No albums found</Text>
+                    <Text>{text.noAlbum}</Text>
                 </View>
             )}
         </View>

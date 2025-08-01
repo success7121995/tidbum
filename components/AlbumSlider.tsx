@@ -1,4 +1,6 @@
+import { useSetting } from "@/constant/SettingProvider";
 import { deleteAsset, getSettings, updateAsset, updateSettings } from "@/lib/db";
+import { getLanguageText, Language } from "@/lib/lang";
 import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import { useFocusEffect } from "@react-navigation/native";
@@ -44,6 +46,12 @@ const AlbumSlider = ({
 
     // Use updatedAssets if available, otherwise use props
     const displayAssets = updatedAssets.length > 0 ? updatedAssets : assets;
+
+    // ============================================================================
+    // CONTEXT
+    // ============================================================================
+    const { language } = useSetting();
+    const text = getLanguageText(language as Language);
 
     // ============================================================================
     // CONSTANTS
@@ -160,9 +168,13 @@ const AlbumSlider = ({
      * Handle delete
      */
     const handleDeleteActionSheet = useCallback(async (asset: Asset) => {
+        const deleteText = asset?.media_type === 'photo' ? text.deletePhoto : 
+                          asset?.media_type === 'video' ? text.deleteVideo : 
+                          text.deleteAsset;
+        
         ActionSheetIOS.showActionSheetWithOptions({
-            message: 'Deleting this asset here won’t remove it from your media library.',
-            options: [`Delete ${asset?.media_type ? asset.media_type.charAt(0).toUpperCase() + asset.media_type.slice(1) : 'Asset'}`, 'Cancel'],
+            message: text.deletingAssetMessage,
+            options: [deleteText, text.cancel],
             destructiveButtonIndex: 0,
             cancelButtonIndex: 1,
         }, (buttonIndex) => {
@@ -170,7 +182,7 @@ const AlbumSlider = ({
                 handleDeleteAsset(asset);
             }
         });
-    }, []);
+    }, [text]);
 
     /**
      * Handle delete
@@ -551,13 +563,13 @@ const AlbumSlider = ({
                                 {/* Header */}
                                 <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-700">
                                     <TouchableOpacity onPress={handleCancelCaption}>
-                                        <Text className="text-gray-400 text-base">Cancel</Text>
+                                        <Text className="text-gray-400 text-base">{text.cancel}</Text>
                                     </TouchableOpacity>
                                     
-                                    <Text className="text-white text-base font-semibold">Edit Caption</Text>
+                                    <Text className="text-white text-base font-semibold">{text.editCaption}</Text>
                                     
                                     <TouchableOpacity onPress={handleSaveCaption}>
-                                        <Text className="text-blue-500 text-base font-semibold">Save</Text>
+                                        <Text className="text-blue-500 text-base font-semibold">{text.saveAlbum}</Text>
                                     </TouchableOpacity>
                                 </View>
 
@@ -576,7 +588,7 @@ const AlbumSlider = ({
                                     <TextInput
                                         value={captionText}
                                         onChangeText={setCaptionText}
-                                        placeholder="Add a caption..."
+                                        placeholder={text.addCaption}
                                         placeholderTextColor="#666"
                                         multiline
                                         textAlignVertical="top"

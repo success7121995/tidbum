@@ -1,7 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from "expo-router";
 import { ActionSheetIOS, Animated, Image, Text, TouchableOpacity, View } from "react-native";
+import { useSetting } from "../constant/SettingProvider";
 import { deleteAlbum } from "../lib/db";
+import { getLanguageText, Language } from "../lib/lang";
 import { Album } from "../types/album";
 
 interface AlbumCardProps {
@@ -15,6 +17,8 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
     // ============================================================================
     const fadeAnim = new Animated.Value(1);
     const scaleAnim = new Animated.Value(1);
+    const { language } = useSetting();
+    const text = getLanguageText(language as Language);
 
     // ============================================================================
     // HANDLERS
@@ -30,7 +34,8 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
         }
         
         ActionSheetIOS.showActionSheetWithOptions({
-            options: ['Delete', 'Cancel'],
+            message: text.deleteAlbum,
+            options: [text.delete, text.cancel],
             cancelButtonIndex: 1,
             destructiveButtonIndex: 0,
         }, (buttonIndex) => {
@@ -112,7 +117,7 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
                     {album.name}
                 </Text>
                 <Text className="text-xs text-gray-600">
-                    {album.totalAssets || 0} {album.totalAssets === 1 ? 'asset' : 'assets'}
+                    {album.totalAssets || 0} {album.totalAssets === 1 ? text.asset : text.assets}
                 </Text>
             </View>
         </Animated.View>
