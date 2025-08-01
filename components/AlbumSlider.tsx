@@ -9,7 +9,6 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-g
 import Animated, {
     runOnJS,
     useAnimatedStyle,
-    useDerivedValue,
     useSharedValue,
     withSpring
 } from 'react-native-reanimated';
@@ -21,6 +20,7 @@ interface AlbumSliderProps {
     selectedAssetIndex: number;
     onAssetChange: (index: number) => void;
     onClose: () => void;
+    onDelete?: (asset: Asset) => void;
 }
 
 const AlbumSlider = ({ 
@@ -29,6 +29,7 @@ const AlbumSlider = ({
     selectedAssetIndex, 
     onAssetChange, 
     onClose,
+    onDelete,
 }: AlbumSliderProps) => {
     // ============================================================================
     // STATE
@@ -58,11 +59,6 @@ const AlbumSlider = ({
     const savedScale = useSharedValue(1);
     const translateY = useSharedValue(0);
     const savedTranslateY = useSharedValue(0);
-
-    // Derived animated value for instant caption updates
-    const currentAssetIndex = useDerivedValue(() => {
-        return Math.round(-translateX.value / ITEM_WIDTH);
-    });
 
     // ============================================================================
     // EFFECTS
@@ -182,6 +178,7 @@ const AlbumSlider = ({
             await deleteAsset(asset.asset_id);
             
             setUpdatedAssets(updatedAssets.filter(a => a.asset_id !== asset.asset_id));
+            onDelete?.(asset);
         } catch (error) {
             console.error('Error deleting asset:', error);
         }

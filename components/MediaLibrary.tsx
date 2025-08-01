@@ -71,7 +71,8 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
     const screenWidth = Dimensions.get('window').width;
     const isTablet = screenWidth >= 768;
     const numColumns = isTablet ? 9 : 5;
-    const itemSize = screenWidth / numColumns;
+    const gap = 2; // 2px gap between items
+    const itemSize = (screenWidth - (gap * (numColumns + 1))) / numColumns; // Account for gaps
 
     // ============================================================================
     // HANDLERS
@@ -203,6 +204,8 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
                     maxToRenderPerBatch={20}
                     windowSize={10}
                     initialNumToRender={20}
+                    columnWrapperStyle={{ gap: gap }}
+                    contentContainerStyle={{ gap: gap, paddingHorizontal: gap }}
                 />
             </View>
         </Modal>

@@ -1,15 +1,17 @@
-import { router } from 'expo-router';
+import AlbumForm from '@/components/AlbumForm';
+import { createAlbum } from '@/lib/db';
+import { CreateAlbumFormData } from '@/lib/schema';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
-import AlbumForm from '../../components/AlbumForm';
-import { createAlbum } from '../../lib/db';
-import { CreateAlbumFormData } from '../../lib/schema';
 
 const CreateAlbumScreen = () => {
 	// ============================================================================
 	// STATE
 	// ============================================================================
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const { album_id } = useLocalSearchParams();
+	console.log('album_id', album_id);
 
 	// ============================================================================
 	// HANDLERS
@@ -22,25 +24,27 @@ const CreateAlbumScreen = () => {
 	const handleSubmit = async (data: CreateAlbumFormData) => {
 		setIsSubmitting(true);
 		try {
-			const albumId = await createAlbum({
+			const subAlbumId = await createAlbum({
 				name: data.name,
 				description: data.description,
+				parent_album_id: album_id as string,
 			});
 
-			if (!albumId) {
+			if (!subAlbumId) {
 				throw new Error('Failed to create album');
 			}
 
 			router.replace({
-				pathname: '/album/[album_id]',
+				pathname: '/album/[album_id]/[sub_album_id]',
 				params: {
-					album_id: albumId,
+					album_id: album_id as string,
+					sub_album_id: subAlbumId,
 					refresh: 'true',
 				},
 			});
 		} catch (error) {
 			Alert.alert('Error', 'Failed to create album. Please try again.');
-			throw error;
+			throw error; // Re-throw to let the form handle the error
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -63,9 +67,6 @@ const CreateAlbumScreen = () => {
 				<View className="mb-8">
 					<Text className="text-3xl font-bold text-slate-800 mb-2">
 						Create Album
-					</Text>
-					<Text className="text-slate-600 text-base">
-						Organize your photos and videos into beautiful albums
 					</Text>
 				</View>
 

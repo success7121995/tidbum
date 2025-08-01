@@ -48,14 +48,8 @@ const AlbumEditScreen = () => {
 
             await updateAlbum(album_id as string, updateData);
 
-            // Navigate back to the album screen with refresh parameter
-            router.replace({
-                pathname: '/album/[album_id]',
-                params: {
-                    album_id: album_id as string,
-                    refresh: 'true',
-                },
-            });
+            // Navigate back
+            router.back();
         } catch (error) {
             console.error('Error updating album:', error);
             Alert.alert('Error', 'Failed to update album. Please try again.');

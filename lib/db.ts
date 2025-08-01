@@ -31,6 +31,9 @@ export const initDb = async (): Promise<SQLite.SQLiteDatabase> => {
             throw new Error('Failed to open database');
         }
         
+        // Enable foreign key constraints
+        await db.execAsync('PRAGMA foreign_keys = ON;');
+        
         // Create album table
         await db.execAsync(`
             CREATE TABLE IF NOT EXISTS album (
@@ -116,6 +119,10 @@ export const getDb = async (): Promise<SQLite.SQLiteDatabase> => {
     if (!db) {
         return await initDb();
     }
+    
+    // Ensure foreign key constraints are enabled
+    await db.execAsync('PRAGMA foreign_keys = ON;');
+    
     return db;
 };
 
@@ -267,9 +274,6 @@ export const getTopLevelAlbums = async (): Promise<(Album & { totalAssets: numbe
     try {
         const db = await getDb();
         
-        // First, let's check if there are any albums at all
-        const checkResult = await db.getAllAsync('SELECT COUNT(*) as count FROM album');
-        
         // Get all top-level albums (where parent_album_id IS NULL)
         const result = await db.getAllAsync(`
             SELECT 
@@ -290,6 +294,8 @@ export const getTopLevelAlbums = async (): Promise<(Album & { totalAssets: numbe
         
         // Convert result to Album array with cover photo info and asset counts
         const albums: (Album & { totalAssets: number })[] = [];
+
+        console.log('result', result);
 
         if (result && Array.isArray(result)) {
             for (const row of result) {

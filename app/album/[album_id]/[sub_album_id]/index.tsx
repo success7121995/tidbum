@@ -10,12 +10,12 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActionSheetIOS, Text, TouchableOpacity, View } from "react-native";
 
-const AlbumScreen = () => {
+const SubAlbumScreen = () => {
 	// ============================================================================
 	// STATE
 	// ============================================================================
 	const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
-	const { album_id } = useLocalSearchParams();
+	const { album_id, sub_album_id } = useLocalSearchParams();
 	const [album, setAlbum] = useState<Album | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [selectedAssetIndex, setSelectedAssetIndex] = useState(0);
@@ -31,14 +31,14 @@ const AlbumScreen = () => {
 	const fetchAlbum = useCallback(async () => {
 		try {
 			setIsLoading(true);
-			const album = await getAlbumById(album_id as string);
+			const album = await getAlbumById(sub_album_id as string);
 			setAlbum(album);
 		} catch (error) {
 			console.error('Error fetching album:', error);
 		} finally {
 			setIsLoading(false);
 		}
-	}, [album_id]);
+	}, [sub_album_id]);
 
 	/**
 	 * Fetch album on focus
@@ -56,7 +56,7 @@ const AlbumScreen = () => {
 		router.push({
 			pathname: '/album/[album_id]/edit',
 			params: {
-				album_id: album_id as string,
+				album_id: sub_album_id as string,
 				name: album?.name,
 				description: album?.description,
 				cover_asset_id: album?.cover_asset_id,
@@ -76,7 +76,7 @@ const AlbumScreen = () => {
 			if (selectedIndex === 0) {
 				setIsMediaLibraryOpen(true);
 			} else if (selectedIndex === 1) {
-				router.push(`/album/${album_id}/create`);
+				router.push(`/album/${album_id}/${sub_album_id}/create`);
 			}
 		});
 	};
@@ -87,7 +87,7 @@ const AlbumScreen = () => {
 	 */
 	const handleSelectAssets = async (assets: Asset[]) => {
 		try {
-			await insertAssets(album_id as string, assets);
+			await insertAssets(sub_album_id as string, assets);
 			// Refresh album data after inserting assets
 			await fetchAlbum();
 		} catch (error) {
@@ -144,7 +144,7 @@ const AlbumScreen = () => {
 	 */
 	const handleAlbumDelete = async () => {
 		try {
-			await deleteAlbum(album_id as string);
+			await deleteAlbum(sub_album_id as string);
 			router.back();
 		} catch (error) {
 			console.error('Error deleting album:', error);
@@ -262,4 +262,4 @@ const AlbumScreen = () => {
 	);
 };
 
-export default AlbumScreen;
+export default SubAlbumScreen;

@@ -32,6 +32,25 @@ const AlbumLayout = () => {
 					),
 				}}
 			/>
+			<Stack.Screen
+				name="create"
+				options={{
+					headerShown: true,
+					headerTitle: '',
+					headerLeft: () => (
+						<TouchableOpacity onPress={() => router.back()}>
+							<Feather name="chevron-left" size={32} color="black" />
+						</TouchableOpacity>
+					),
+				}}
+			/>
+			<Stack.Screen
+				name="[sub_album_id]"
+				options={{
+					headerShown: true,
+					headerTitle: '',
+				}}
+			/>
 		</Stack>
 	);
 };

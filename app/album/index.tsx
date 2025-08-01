@@ -69,25 +69,25 @@ const HomeScreen = () => {
 
             {/* Album grid */}
             { albums.length > 0 ? (
-            <View className="flex-1 px-4 py-4">
-                <FlatList
-                    data={albums}
-                    renderItem={renderAlbumCard}
-                    keyExtractor={(item) => item.album_id || ''}
-                    numColumns={albumsPerRow}
-                    columnWrapperStyle={{ 
-                        justifyContent: 'flex-start',
-                        gap: 2
-                    }}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: 20 }}
-                    removeClippedSubviews={false}
-                    getItemLayout={(data, index) => ({
-                        length: 200, // Approximate height of each item
-                        offset: 200 * Math.floor(index / albumsPerRow),
-                        index,
-                    })}
-                    />
+                <View className="flex-1 px-4 py-4">
+                    <FlatList
+                        data={albums}
+                        renderItem={renderAlbumCard}
+                        keyExtractor={(item) => item.album_id || ''}
+                        numColumns={albumsPerRow}
+                        columnWrapperStyle={{ 
+                            justifyContent: 'flex-start',
+                            gap: 2
+                        }}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: 20 }}
+                        removeClippedSubviews={false}
+                        getItemLayout={(data, index) => ({
+                            length: 200, // Approximate height of each item
+                            offset: 200 * Math.floor(index / albumsPerRow),
+                            index,
+                        })}
+                        />
                 </View>
             ) : (
                 <View className="flex-1 items-center justify-center">
