@@ -1,7 +1,8 @@
 import { deleteSelectedAssets as deleteSelectedAssetsFromDb } from "@/lib/db";
 import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
-import React, { useCallback, useRef, useState } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActionSheetIOS, Dimensions, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -43,12 +44,34 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const [isDragging, setIsDragging] = useState(false);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
+    const [isExpanded, setIsExpanded] = useState(false);
 
     // ============================================================================
     // CONTEXT
     // ============================================================================
-    const { language } = useSetting();
+    const { language, theme } = useSetting();
     const text = getLanguageText(language as Language);
+
+    // ============================================================================
+    // EFFECTS
+    // ============================================================================
+    
+    // Load expand state from AsyncStorage when album changes
+    useEffect(() => {
+        const loadExpandState = async () => {
+            try {
+                const key = `album_expand_${album.album_id}`;
+                const savedState = await AsyncStorage.getItem(key);
+                if (savedState !== null) {
+                    setIsExpanded(JSON.parse(savedState));
+                }
+            } catch (error) {
+                console.error('Error loading expand state:', error);
+            }
+        };
+        
+        loadExpandState();
+    }, [album.album_id]);
 
     // ============================================================================
     // ANIMATED VALUES
@@ -75,9 +98,17 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
      * Handle album delete
      * @param albumId - The ID of the album to delete
      */
-    const handleAlbumDelete = (albumId: string) => {
+    const handleAlbumDelete = async (albumId: string) => {
         const newSubAlbums = subAlbums.filter((album) => album.album_id !== albumId);
         setSubAlbums(newSubAlbums);
+        
+        // Clean up expand state from AsyncStorage
+        try {
+            const key = `album_expand_${albumId}`;
+            await AsyncStorage.removeItem(key);
+        } catch (error) {
+            console.error('Error removing expand state:', error);
+        }
     };
 
     /**
@@ -137,13 +168,13 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             destructiveButtonIndex: 0,
             cancelButtonIndex: 1,
         }, (buttonIndex) => {
-                         if (buttonIndex === 0) {
-                 handleDeleteSelectedAssetsFromDb(Array.from(selectedAssets));
-             }
+            if (buttonIndex === 0) {
+                handleDeleteSelectedAssetsFromDb(Array.from(selectedAssets));
+            }
         });
     }, [selectedAssets, text]);
 
-        /**
+    /**
      * Delete selected assets
      * @param assetIds - The asset IDs to delete
      */
@@ -163,6 +194,22 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             console.error('Error deleting selected assets:', error);
         }
     }, [onSelectionChange, onAssetsUpdate, assets]);
+
+    /**
+     * Handle sub-album expand / collapse   
+     */
+    const handleSubAlbumExpandCollapse = useCallback(async () => {
+        const newExpandedState = !isExpanded;
+        setIsExpanded(newExpandedState);
+        
+        // Save expand state to AsyncStorage
+        try {
+            const key = `album_expand_${album.album_id}`;
+            await AsyncStorage.setItem(key, JSON.stringify(newExpandedState));
+        } catch (error) {
+            console.error('Error saving expand state:', error);
+        }
+    }, [isExpanded, album.album_id]);
 
     /**
      * Calculate grid position from screen coordinates (worklet compatible)
@@ -463,40 +510,41 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         const isDropTarget = dropTargetIndex === index && !isCurrentlyDragged && draggedItem?.type === 'album';
         
         return (
-            <Animated.View 
-                style={isCurrentlyDragged ? animatedStyle : undefined}
-                className={`${isTablet ? 'w-1/5' : 'w-1/3'} px-1 mb-4`}
-            >
-                <View style={{
-                    opacity: isCurrentlyDragged ? 0.3 : 1,
-                    borderWidth: isDropTarget ? 2 : 0,
-                    borderColor: isDropTarget ? '#3B82F6' : 'transparent',
-                    borderRadius: isDropTarget ? 8 : 0,
-                }}>
-                    <AlbumCard
-                        album={subAlbum}
-                        onDelete={handleAlbumDelete}
-                    />
-                    
-                    {/* Drop target indicator */}
-                    {isDropTarget && (
-                        <View className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-lg items-center justify-center">
-                            <View className="bg-blue-500 rounded-full p-2">
-                                <Feather name="arrow-down" size={16} color="white" />
+            <View className={`${isTablet ? 'w-1/5' : 'w-1/3'} px-1 mb-4`}>
+                <Animated.View 
+                    style={isCurrentlyDragged ? animatedStyle : undefined}
+                >
+                    <View style={{
+                        opacity: isCurrentlyDragged ? 0.3 : 1,
+                        borderWidth: isDropTarget ? 2 : 0,
+                        borderColor: isDropTarget ? '#3B82F6' : 'transparent',
+                        borderRadius: isDropTarget ? 8 : 0,
+                    }}>
+                        <AlbumCard
+                            album={subAlbum}
+                            onDelete={handleAlbumDelete}
+                        />
+                        
+                        {/* Drop target indicator */}
+                        {isDropTarget && (
+                            <View className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-lg items-center justify-center">
+                                <View className="bg-blue-500 rounded-full p-2">
+                                    <Feather name="arrow-down" size={16} color="white" />
+                                </View>
                             </View>
-                        </View>
-                    )}
+                        )}
 
-                    {/* Drag indicator for dragged item */}
-                    {isCurrentlyDragged && (
-                        <View className="absolute bottom-2 left-2">
-                            <View className="bg-blue-500 bg-opacity-80 rounded-full p-1">
-                                <Feather name="move" size={12} color="white" />
+                        {/* Drag indicator for dragged item */}
+                        {isCurrentlyDragged && (
+                            <View className="absolute bottom-2 left-2">
+                                <View className="bg-blue-500 bg-opacity-80 rounded-full p-1">
+                                    <Feather name="move" size={12} color="white" />
+                                </View>
                             </View>
-                        </View>
-                    )}
-                </View>
-            </Animated.View>
+                        )}
+                    </View>
+                </Animated.View>
+            </View>
         );
     }, [isTablet, draggedItem, dropTargetIndex, animatedStyle]);
 
@@ -515,9 +563,9 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             <Animated.View className="flex-1">
                 {/* Selection mode header - MediaLibrary style */}
                 {isSelectionMode && (
-                    <View className="px-4 py-3 bg-white border-b border-gray-200">
+                    <View className={`px-4 py-3 ${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} border-b ${theme === 'dark' ? 'border-dark-border' : 'border-light-border'}`}>
                         <View className="flex-row items-center justify-between">
-                            <Text className="text-gray-900 font-medium text-lg">
+                            <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
                                 {selectedAssets.size} {selectedAssets.size === 1 ? text.item : text.items} {text.selected}
                             </Text>
 
@@ -545,28 +593,48 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                 {/* Sub-albums */}
                 {subAlbums && subAlbums.length > 0 && (
                     <View className="px-4 mb-4">
-                        <Text className="text-lg font-semibold text-gray-900 mb-3">
-                            {text.folders} ({subAlbums.length})
-                        </Text>
-                        <FlatList
-                            ref={albumListRef}
-                            data={subAlbums}
-                            renderItem={renderSubAlbumItem}
-                            keyExtractor={(item) => item.album_id || ''}
-                            numColumns={numColumns}
-                            columnWrapperStyle={{ 
-                                justifyContent: 'flex-start',
-                                gap: 2
-                            }}
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={{ paddingBottom: 20 }}
-                            removeClippedSubviews={false}
-                            getItemLayout={(data, index) => ({
-                                length: 200, // Approximate height of each item
-                                offset: 200 * Math.floor(index / numColumns),
-                                index,
-                            })}
+
+                        {/* Header */}
+                        <View className="flex-row items-center justify-between mb-3">
+                            <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
+                                {text.folders} ({subAlbums.length}) 
+                            </Text>
+
+                            {/* Expand/Collapse button */}
+                            <TouchableOpacity 
+                                onPress={handleSubAlbumExpandCollapse}
+                                className="p-2"
+                            >
+                                <Feather 
+                                    name={isExpanded ? 'chevron-up' : 'chevron-down'} 
+                                    size={20} 
+                                    color={theme === 'dark' ? '#cbd5e1' : '#64748b'} 
+                                />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* List - only show when expanded */}
+                        {isExpanded && (
+                            <FlatList
+                                ref={albumListRef}
+                                data={subAlbums}
+                                renderItem={renderSubAlbumItem}
+                                keyExtractor={(item) => item.album_id || ''}
+                                numColumns={isTablet ? 5 : 3}
+                                columnWrapperStyle={{ 
+                                    justifyContent: 'flex-start',
+                                    gap: 2
+                                }}
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={{ paddingBottom: 20 }}
+                                removeClippedSubviews={false}
+                                getItemLayout={(data, index) => ({
+                                    length: 200, // Approximate height of each item
+                                    offset: 200 * Math.floor(index / (isTablet ? 5 : 3)),
+                                    index,
+                                })}
                             />
+                        )}
                     </View>
                 )}
 
@@ -574,7 +642,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                 {assets && assets.length > 0 ? (
                     <>
                         <View className="px-4 mb-3">
-                            <Text className="text-lg font-semibold text-gray-900">
+                            <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
                                 {text.media} ({assets.length})
                             </Text>
                         </View>
@@ -596,11 +664,11 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                     </>
                 ) : (
                     <View className="flex-1 items-center justify-center px-4">
-                        <Feather name="image" size={48} color="#D1D5DB" />
-                        <Text className="text-gray-500 text-center mt-4">
+                        <Feather name="image" size={48} color={theme === 'dark' ? '#cbd5e1' : '#64748b'} />
+                        <Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} text-center mt-4`}>
                             {text.noMediaInAlbum}
                         </Text>
-                        <Text className="text-gray-400 text-center text-sm mt-2">
+                        <Text className={`${theme === 'dark' ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'} text-center text-sm mt-2`}>
                             {text.tapToAdd}
                         </Text>
                     </View>

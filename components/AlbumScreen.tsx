@@ -10,7 +10,7 @@ import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
 interface AlbumScreenProps {
@@ -30,6 +30,11 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
 
 	// ============================================================================
+	// REFS
+	// ============================================================================
+	const loadedAlbumsRef = useRef<Set<string>>(new Set());
+
+	// ============================================================================
 	// CONTEXT
 	// ============================================================================
 	const { 
@@ -39,7 +44,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 		handleAlbumDeleteActionSheet 
 	} = useAlbum();
 
-	const { language } = useSetting();
+	const { language, theme } = useSetting();
 	const text = getLanguageText(language as Language);
 
 	// ============================================================================
@@ -51,24 +56,40 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	 */
 	const fetchAlbum = useCallback(async () => {
 		try {
-			setIsLoading(true);
-			const album = await getAlbumById(albumId);
-			setAlbum(album);
+			// Only set loading if we don't have album data yet
+			if (!album) {
+				setIsLoading(true);
+			}
+			const albumData = await getAlbumById(albumId);
+			setAlbum(albumData);
+			// Mark this album as loaded
+			loadedAlbumsRef.current.add(albumId);
 		} catch (error) {
 			console.error('Error fetching album:', error);
 		} finally {
 			setIsLoading(false);
 		}
-	}, [albumId]);
+	}, [albumId, album]);
 
 	/**
-	 * Fetch album on focus
+	 * Fetch album on focus - only if we don't have data
 	 */
 	useFocusEffect(
 		useCallback(() => {
-			fetchAlbum();
-		}, [fetchAlbum])
+			// Only fetch if we don't have album data or if the albumId changed
+			if (!album || album.album_id !== albumId || !loadedAlbumsRef.current.has(albumId)) {
+				fetchAlbum();
+			}
+		}, [fetchAlbum, album, albumId])
 	);
+
+	/**
+	 * Clean up loaded albums tracking when albumId changes
+	 */
+	useEffect(() => {
+		// Clear loaded albums when albumId changes to ensure fresh data
+		loadedAlbumsRef.current.clear();
+	}, [albumId]);
 
 	/**
 	 * Handle edit album
@@ -111,8 +132,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 		if (assetIndex !== -1) {
 			setSelectedAssetIndex(assetIndex);
 			setIsSliderOpen(true);
-			// Refresh album data to ensure slider has latest data
-			fetchAlbum();
+			// No need to refresh album data if we already have it
 		}
 	};
 
@@ -121,8 +141,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	 */
 	const handleSliderClose = () => {
 		setIsSliderOpen(false);
-		// Refresh album data to ensure media list is up to date
-		fetchAlbum();
+		// No need to refresh album data on close
 	};
 
 	/**
@@ -178,45 +197,45 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 
 	if (isLoading) {
 		return (
-			<View className="flex-1 bg-white items-center justify-center">
-				<Text className="text-gray-500">{text.loadingAlbum}</Text>
+			<View className={`flex-1 ${theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'} items-center justify-center`}>
+				<Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>{text.loadingAlbum}</Text>
 			</View>
 		);
 	}
 
 	if (!album) {
 		return (
-			<View className="flex-1 bg-white items-center justify-center">
-				<Text className="text-gray-500">{text.albumNotFound}</Text>
+			<View className={`flex-1 ${theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'} items-center justify-center`}>
+				<Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>{text.albumNotFound}</Text>
 			</View>
 		);
 	}
 
 	return (
-		<View className="flex-1 bg-white">
+		<View className={`flex-1 ${theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'}`}>
 
 			{/* Header with title and action buttons */}
-			<View className="px-4 py-4 mb-5 border-b border-gray-200">
+			<View className={`px-4 py-4 mb-5 border-b ${theme === 'dark' ? 'border-dark-border' : 'border-light-border'}`}>
 				<View className="flex-row items-center justify-between">
 
 					<View className="flex-1 gap-1">
-						<Text className="text-2xl font-bold text-gray-900">{album.name}</Text>
+						<Text className={`text-2xl font-bold ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>{album.name}</Text>
 						
 						{/* Asset counts */}
 						<View className="flex-row items-center gap-4 mb-4">
 
 							{/* Photo count */}
 							<View className="flex-row items-center gap-1">
-								<Feather name="image" size={16} color="#6B7280" />
-								<Text className="text-sm text-gray-600">
+								<Feather name="image" size={16} color={theme === 'dark' ? '#94a3b8' : '#64748b'} />
+								<Text className={`text-sm ${theme === 'dark' ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'}`}>
 									{album.assets?.filter(asset => asset.media_type === 'photo').length || 0}  {album.assets && album.assets.filter(asset => asset.media_type === 'photo').length > 1 ? text.photos : text.photo}
 								</Text>
 							</View>
 
 							{/* Video count */}
 							<View className="flex-row items-center gap-1">
-								<Feather name="video" size={16} color="#6B7280" />
-								<Text className="text-sm text-gray-600">
+								<Feather name="video" size={16} color={theme === 'dark' ? '#94a3b8' : '#64748b'} />
+								<Text className={`text-sm ${theme === 'dark' ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'}`}>
 									{album.assets?.filter(asset => asset.media_type === 'video').length || 0}  {album.assets && album.assets.filter(asset => asset.media_type === 'video').length > 1 ? text.videos : text.video}
 								</Text>
 							</View>
@@ -231,7 +250,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 							onPress={handleAlbumDeleteLocal}
 							className="p-2"
 						>
-							<Feather name="trash-2" size={20} color="#374151" />
+							<Feather name="trash-2" size={20} color={theme === 'dark' ? '#cbd5e1' : '#475569'} />
 						</TouchableOpacity>
 
 						{/* Edit album */}
@@ -239,7 +258,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 							onPress={handleEditAlbumLocal}
 							className="p-2"
 						>
-							<Feather name="edit" size={20} color="#374151" />
+							<Feather name="edit" size={20} color={theme === 'dark' ? '#cbd5e1' : '#475569'} />
 						</TouchableOpacity>
 
 						{/* Add assets */}
@@ -247,12 +266,12 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 							onPress={handleAddAssetsLocal}
 							className="p-2"
 						>
-							<MaterialIcons name="add" size={26} color="#374151" />
+							<MaterialIcons name="add" size={26} color={theme === 'dark' ? '#cbd5e1' : '#475569'} />
 						</TouchableOpacity>
 					</View>
 				</View>
 
-				<Text className="text-sm text-gray-600">{album.description || text.noDescription}</Text>
+				<Text className={`text-sm ${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>{album.description || text.noDescription}</Text>
 			</View>
 
 			{/* Album content */}

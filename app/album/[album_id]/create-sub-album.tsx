@@ -13,8 +13,11 @@ const CreateAlbumScreen = () => {
 	// ============================================================================
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { album_id } = useLocalSearchParams();
-	const { language } = useSetting();
+	const { language, theme } = useSetting();
 	const text = getLanguageText(language as Language);
+
+	// The album_id from the route is the parent album ID
+	const parentAlbumId = album_id as string;
 
 	// ============================================================================
 	// HANDLERS
@@ -27,10 +30,11 @@ const CreateAlbumScreen = () => {
 	const handleSubmit = async (data: CreateAlbumFormData) => {
 		setIsSubmitting(true);
 		try {
+
 			const subAlbumId = await createAlbum({
 				name: data.name,
 				description: data.description,
-				parent_album_id: album_id as string,
+				parent_album_id: parentAlbumId,
 			});
 
 			if (!subAlbumId) {
@@ -40,7 +44,7 @@ const CreateAlbumScreen = () => {
 			router.replace({
 				pathname: '/album/[album_id]/[sub_album_id]',
 				params: {
-					album_id: album_id as string,
+					album_id: parentAlbumId,
 					sub_album_id: subAlbumId,
 					refresh: 'true',
 				},
@@ -64,11 +68,11 @@ const CreateAlbumScreen = () => {
 	// RENDERERS
 	// ============================================================================
 	return (
-		<View className="flex-1 bg-white">
+		<View className={`flex-1 ${theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'}`}>
 			<ScrollView className="flex-1 px-6 py-6">
 				{/* Header */}
 				<View className="mb-8">
-					<Text className="text-3xl font-bold text-slate-800 mb-2">
+					<Text className={`text-3xl font-bold ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} mb-2`}>
 						{text.createAlbum}
 					</Text>
 				</View>

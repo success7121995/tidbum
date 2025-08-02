@@ -12,7 +12,7 @@ const CreateAlbumScreen = () => {
 	// STATE
 	// ============================================================================
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const { language } = useSetting();
+	const { language, theme } = useSetting();
 	const text = getLanguageText(language as Language);
 	// ============================================================================
 	// HANDLERS
@@ -60,14 +60,14 @@ const CreateAlbumScreen = () => {
 	// RENDERERS
 	// ============================================================================
 	return (
-		<View className="flex-1 bg-white">
+		<View className={`flex-1 ${theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'}`}>
 			<ScrollView className="flex-1 px-6 py-6">
 				{/* Header */}
 				<View className="mb-8">
-					<Text className="text-3xl font-bold text-slate-800 mb-2">
+					<Text className={`text-3xl font-bold ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} mb-2`}>
 						{text.createAlbum}
 					</Text>
-					<Text className="text-slate-600 text-base">
+					<Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} text-base`}>
 						{text.createAlbumSubtitle}
 					</Text>
 				</View>

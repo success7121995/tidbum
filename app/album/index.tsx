@@ -17,7 +17,7 @@ const HomeIndex = () => {
     const isTablet = width >= 768; // iPad breakpoint
     const albumsPerRow = isTablet ? 5 : 3;
     const [isTesting, _] = useState(false);
-    const { language } = useSetting();
+    const { language, theme } = useSetting();
     const text = getLanguageText(language as Language);
 
     // ============================================================================
@@ -68,11 +68,11 @@ const HomeIndex = () => {
     );
 
     return (
-        <View className="bg-white flex-1">
+        <View className={`flex-1 ${theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'}`}>
             {/* Header bar */}
             <View className="flex-row justify-end items-center px-4 py-2">
                 <TouchableOpacity onPress={() => router.push('/album/create')}>
-                    <FontAwesome6 name="add" size={24} color="black" />
+                    <FontAwesome6 name="add" size={24} color={theme === 'dark' ? 'white' : 'black'} />
                 </TouchableOpacity>
             </View>
 
@@ -100,7 +100,7 @@ const HomeIndex = () => {
                 </View>
             ) : (
                 <View className="flex-1 items-center justify-center">
-                    <Text>{text.noAlbum}</Text>
+                    <Text className={`text-md font-bold ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>{text.noAlbum}</Text>
                 </View>
             )}
         </View>

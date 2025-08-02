@@ -8,6 +8,12 @@ export const getLanguageText = (language: Language) => {
 	switch (language) {
 		case Language.ZH_TW:
 			return {
+				//===============================================
+				// APP
+				//===============================================
+				appName: "Tidbum",
+				back: "返回",
+
                 //===============================================
                 // ALBUM MANAGEMENT
                 //===============================================
@@ -150,6 +156,12 @@ export const getLanguageText = (language: Language) => {
 			};
 		case Language.ZH_CN:
 			return {
+				//===============================================
+				// APP
+				//===============================================
+				appName: "Tidbum",
+				back: "返回",
+
                 //===============================================
                 // ALBUM MANAGEMENT
                 //===============================================
@@ -293,6 +305,12 @@ export const getLanguageText = (language: Language) => {
 		case Language.EN:
 		default:
 			return {
+                //===============================================
+                // APP
+                //===============================================
+                appName: "Tidbum",
+                back: "Back",
+
                 //===============================================
                 // ALBUM MANAGEMENT
                 //===============================================

@@ -1,11 +1,13 @@
 import { getSettings, updateSettings } from '@/lib/db';
 import * as Localization from 'expo-localization';
 import { createContext, useContext, useEffect, useState } from "react";
+import { useColorScheme } from 'react-native';
 import { Language } from '../lib/lang';
 
 interface SettingContextType {
     language: string;
     setLanguage: (language: Language) => void;
+    theme: 'light' | 'dark';
 }
 
 const SettingContext = createContext<SettingContextType | undefined>(undefined);
@@ -23,16 +25,22 @@ export const SettingProvider = ({ children }: { children: React.ReactNode }) => 
     // STATE
     // ============================================================================
     const [language, setLanguage] = useState(Language.EN);
+    const theme = useColorScheme() || 'light';
 
     // ============================================================================
     // EFFECTS
     // ============================================================================
+
+    /**
+     * Get language
+     */
     useEffect(() => {
         /**
          * Get settings
          */
         (async () => {
             const settings = await getSettings();
+
             if (settings.lang) {
                 setLanguage(settings.lang as Language);
             } else {
@@ -42,6 +50,7 @@ export const SettingProvider = ({ children }: { children: React.ReactNode }) => 
                 const getSystemLanguageForSettings = async () => {
                     try {
                         const locale = Localization.getLocales?.()[0]?.languageTag ?? 'en';
+
                         
                         let systemLang: Language;
                         if (locale.startsWith('zh')) {
@@ -75,9 +84,15 @@ export const SettingProvider = ({ children }: { children: React.ReactNode }) => 
         })();
 
     }, []);
+    
+
 
     return (
-        <SettingContext.Provider value={{ language, setLanguage }}>
+        <SettingContext.Provider value={{
+            language,
+            setLanguage,
+            theme,
+        }}>
             {children}
         </SettingContext.Provider>
     );

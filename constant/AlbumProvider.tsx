@@ -81,6 +81,7 @@ const AlbumProvider = ({ children }: { children: React.ReactNode }) => {
      * @param onMediaSelect - Callback when user selects "Add media"
      */
     const handleAddAssets = useCallback((albumId: string, parentAlbumId?: string, onMediaSelect?: () => void) => {
+        
         ActionSheetIOS.showActionSheetWithOptions({
             message: text.addMediaOrNewFolder,
             options: [text.addMedia, text.addNewFolder, text.cancel],
@@ -92,10 +93,14 @@ const AlbumProvider = ({ children }: { children: React.ReactNode }) => {
                     onMediaSelect();
                 }
             } else if (selectedIndex === 1) {
-                const createPath = parentAlbumId 
-                    ? `/album/${parentAlbumId}/${albumId}/create`
-                    : `/album/${albumId}/create`;
-                router.push(createPath as any);
+                if (parentAlbumId) {
+                    router.push({
+                        pathname: '/album/[album_id]/create-sub-album',
+                        params: { album_id: parentAlbumId }
+                    });
+                } else {
+                    router.push('/album/create');
+                }
             }
         });
     }, []);

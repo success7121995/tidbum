@@ -27,7 +27,7 @@ const AlbumForm = ({
 	initialData = {}, 
 	isSubmitting = false 
 }: AlbumFormProps) => {
-	const { language } = useSetting();
+	const { language, theme } = useSetting();
 	const text = getLanguageText(language as Language);
 
 	const {
@@ -63,7 +63,7 @@ const AlbumForm = ({
 			<View className="space-y-6">
 				{/* Album Name */}
 				<View>
-					<Text className="text-slate-700 font-semibold mb-2">
+					<Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-semibold mb-2`}>
 						{text.albumName}<Text className="text-red-500">*</Text>
 					</Text>
 					<Controller
@@ -72,9 +72,10 @@ const AlbumForm = ({
 						render={({ field: { onChange, onBlur, value } }) => (
 							<TextInput
 								className={`px-4 py-3 rounded-xl border ${
-									errors.name ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-white'
-								}`}
+									errors.name ? 'border-red-500 bg-red-50' : `${theme === 'dark' ? 'border-dark-border bg-dark-card' : 'border-light-border bg-light-card'}`
+								} ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'}`}
 								placeholder={text.enterAlbumName}
+								placeholderTextColor={theme === 'dark' ? '#94a3b8' : '#9ca3af'}
 								onChangeText={onChange}
 								onBlur={onBlur}
 								value={value}
@@ -91,7 +92,7 @@ const AlbumForm = ({
 
 				{/* Description */}
 				<View className="mt-4">
-					<Text className="text-slate-700 font-semibold mb-2">
+					<Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-semibold mb-2`}>
 						{text.enterAlbumDescription}
 					</Text>
 					<Controller
@@ -99,8 +100,9 @@ const AlbumForm = ({
 						name="description"
 						render={({ field: { onChange, onBlur, value } }) => (
 							<TextInput
-								className="px-4 py-3 rounded-xl border border-slate-300 bg-white"
+								className={`px-4 py-3 rounded-xl border ${theme === 'dark' ? 'border-dark-border bg-dark-card' : 'border-light-border bg-light-card'} ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'}`}
 								placeholder={text.enterAlbumDescription}
+								placeholderTextColor={theme === 'dark' ? '#94a3b8' : '#9ca3af'}
 								onChangeText={onChange}
 								onBlur={onBlur}
 								value={value}
@@ -137,11 +139,11 @@ const AlbumForm = ({
 
 				{onCancel && (
 					<TouchableOpacity
-						className="py-4 mt-4 rounded-xl border border-slate-300"
+						className={`py-4 mt-4 rounded-xl border ${theme === 'dark' ? 'border-dark-border' : 'border-light-border'}`}
 						onPress={onCancel}
 						disabled={isSubmitting}
 					>
-						<Text className="text-slate-600 text-center font-medium">
+						<Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} text-center font-medium`}>
 							{text.cancel}
 						</Text>
 					</TouchableOpacity>

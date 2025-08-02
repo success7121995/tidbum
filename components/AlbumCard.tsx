@@ -17,7 +17,7 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
     // ============================================================================
     const fadeAnim = new Animated.Value(1);
     const scaleAnim = new Animated.Value(1);
-    const { language } = useSetting();
+    const { language, theme } = useSetting();
     const text = getLanguageText(language as Language);
 
     // ============================================================================
@@ -78,7 +78,7 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
 
     return (
         <Animated.View 
-            className="bg-white flex-1"
+            className="flex-1 bg-transparent"
             style={{
                 opacity: fadeAnim,
                 transform: [{ scale: scaleAnim }],
@@ -86,7 +86,7 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
         >
             {/* Photo Thumbnail - Clickable for navigation */}
             <TouchableOpacity 
-                className="w-full aspect-square bg-gray-200 relative rounded-xl rounded-br-none overflow-hidden"
+                className={`w-full aspect-square ${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} relative rounded-xl rounded-br-none overflow-hidden`}
                 onPress={handleAlbumPress}
                 activeOpacity={0.8}
             >
@@ -97,8 +97,8 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
                         resizeMode="cover"
                     />
                 ) : (
-                    <View className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
-                        <Ionicons name="images-outline" size={32} color="#6B7280" />
+                    <View className={`w-full h-full ${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} flex items-center justify-center`}>
+                        <Ionicons name="images-outline" size={32} color={theme === 'dark' ? '#cbd5e1' : '#64748b'} />
                     </View>
                 )}
                 
@@ -113,10 +113,10 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
             
             {/* Album Info */}
             <View className="p-3">
-                <Text className="text-sm font-semibold text-gray-900 mb-1" numberOfLines={1}>
+                <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} text-sm font-semibold mb-1`} numberOfLines={1}>
                     {album.name}
                 </Text>
-                <Text className="text-xs text-gray-600">
+                <Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} text-xs`}>
                     {album.totalAssets || 0} {album.totalAssets === 1 ? text.asset : text.assets}
                 </Text>
             </View>

@@ -70,7 +70,7 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
     // ============================================================================
     // CONTEXT
     // ============================================================================
-    const { language } = useSetting();
+    const { language, theme } = useSetting();
     const text = getLanguageText(language as Language);
 
     // ============================================================================
@@ -169,11 +169,11 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
 
     const headerComponent = useMemo(() => (
         <View 
-            className="flex-row justify-between items-center px-4 py-3 bg-white border-b border-gray-200" 
+            className={`flex-row justify-between items-center px-4 py-3 ${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} border-b ${theme === 'dark' ? 'border-dark-border' : 'border-light-border'}`}
             style={{ paddingTop: insets.top }}
         >
             <View className="flex-row items-center">
-                <Text className="text-lg font-semibold text-gray-900">
+                <Text className={`text-lg font-semibold ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
                     {text.mediaLibrary}
                 </Text>
                 {selectedAssetIds.size > 0 && (
@@ -182,23 +182,23 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
                     </Text>
                 )}
                 {!isLoading && (
-                    <Text className="ml-2 text-xs text-gray-500">
+                    <Text className={`ml-2 text-xs ${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
                         {filteredAssets.length} {text.available}
                     </Text>
                 )}
             </View>
             <Text
-                className="text-lg text-gray-500"
+                className={`text-lg ${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}
                 onPress={handleClose}
             >
-                <Feather name="x" size={24} color="black" />
+                <Feather name="x" size={24} color={theme === 'dark' ? '#cbd5e1' : '#475569'} />
             </Text>
         </View>
-    ), [selectedAssetIds.size, filteredAssets.length, insets.top, handleClose, isLoading, text]);
+    ), [selectedAssetIds.size, filteredAssets.length, insets.top, handleClose, isLoading, text, theme]);
 
     return (
         <Modal visible={visible} animationType="slide">
-            <View className="flex-1 bg-white">
+            <View className={`flex-1 ${theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'}`}>
                 {/* Header */}
                 {headerComponent}
 

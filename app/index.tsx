@@ -16,7 +16,7 @@ export default function Index() {
 		isRequesting: false
 	});
 
-	const { language } = useSetting();
+	const { language, theme } = useSetting();
 	const text = getLanguageText(language as Language);
 
 	useEffect(() => { 
@@ -70,10 +70,10 @@ export default function Index() {
 	 */
 	if (permissionStatus.status === 'loading') {
 		return (
-			<View className="flex-1 bg-slate-50">
+			<View className={`flex-1 ${theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'}`}>
 				<View className="flex-1 justify-center items-center px-6 py-10">
-					<View className="w-10 h-10 rounded-full border-3 border-slate-200 border-t-blue-500 mb-4" />
-					<Text className="text-base text-slate-500 font-medium">{text.checkingPermissions}</Text>
+					<View className={`w-10 h-10 rounded-full border-3 ${theme === 'dark' ? 'border-dark-border border-t-blue-500' : 'border-light-border border-t-blue-500'} mb-4`} />
+					<Text className={`text-base ${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} font-medium`}>{text.checkingPermissions}</Text>
 				</View>
 			</View>
 		);
@@ -84,30 +84,30 @@ export default function Index() {
 	 * Show main app content when permission is granted
 	 */
 	return (
-		<View className="flex-1 bg-slate-50">
+		<View className={`flex-1 ${theme === 'dark' ? 'bg-dark-bg' : 'bg-light-bg'}`}>
 			<View className="flex-1 justify-center items-center px-6 py-10">
 				{/* Icon placeholder */}
-				<View className="w-20 h-20 rounded-full bg-slate-100 justify-center items-center mb-6">
+				<View className={`w-20 h-20 rounded-full ${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} justify-center items-center mb-6`}>
 					<Text className="text-4xl">📷</Text>
 				</View>
 				
-				<Text className="text-2xl font-bold text-slate-800 text-center mb-4">
+				<Text className={`text-2xl font-bold ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} text-center mb-4`}>
 					{text.mediaAccessRequired}
 				</Text>
 				
-				<Text className="text-base text-slate-500 text-center leading-6 mb-8 max-w-80">
+				<Text className={`text-base ${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} text-center leading-6 mb-8 max-w-80`}>
 					{text.mediaAccessDescription}
 				</Text>
 				
 				<View className="self-stretch mb-8">
-					<Text className="text-lg font-semibold text-slate-800 mb-4 text-center">
+					<Text className={`text-lg font-semibold ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} mb-4 text-center`}>
 						{text.toEnableAccess}
 					</Text>
 					<View className="flex-row items-center mb-3 px-4">
 						<Text className="w-6 h-6 rounded-full bg-blue-500 text-white text-center leading-6 text-sm font-semibold mr-3">
 							1
 						</Text>
-						<Text className="text-base text-slate-600 flex-1">
+						<Text className={`text-base ${theme === 'dark' ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'} flex-1`}>
 							{text.tapOpenSettings}
 						</Text>
 					</View>
@@ -115,7 +115,7 @@ export default function Index() {
 						<Text className="w-6 h-6 rounded-full bg-blue-500 text-white text-center leading-6 text-sm font-semibold mr-3">
 							2
 						</Text>
-						<Text className="text-base text-slate-600 flex-1">
+						<Text className={`text-base ${theme === 'dark' ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'} flex-1`}>
 							{text.findTidBum}
 						</Text>
 					</View>
@@ -123,7 +123,7 @@ export default function Index() {
 						<Text className="w-6 h-6 rounded-full bg-blue-500 text-white text-center leading-6 text-sm font-semibold mr-3">
 							3
 						</Text>
-						<Text className="text-base text-slate-600 flex-1">
+						<Text className={`text-base ${theme === 'dark' ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'} flex-1`}>
 							{text.enablePhotosVideos}
 						</Text>
 					</View>
@@ -134,17 +134,17 @@ export default function Index() {
 						className="bg-blue-500 py-4 px-8 rounded-xl items-center shadow-lg shadow-blue-500/30"
 						onPress={handleOpenSettings}
 					>
-						<Text className="text-white text-base font-semibold">
+						<Text className={`text-white text-base font-semibold`}>
 							{text.openSettings}
 						</Text>
 					</TouchableOpacity>
 					
 					<TouchableOpacity 
-						className="bg-transparent mt-5 py-4 px-8 rounded-xl border border-slate-300 items-center"
+						className={`bg-transparent mt-5 py-4 px-8 rounded-xl border ${theme === 'dark' ? 'border-dark-border' : 'border-light-border'} items-center`}
 						onPress={handleRequestPermission}
 						disabled={permissionStatus.isRequesting}
 					>
-						<Text className="text-slate-500 text-base font-medium">
+						<Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} text-base font-medium`}>
 							{permissionStatus.isRequesting ? text.requesting : text.tryAgain}
 						</Text>
 					</TouchableOpacity>

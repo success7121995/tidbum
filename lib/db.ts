@@ -87,8 +87,7 @@ export const initDb = async (): Promise<SQLite.SQLiteDatabase> => {
         await db.execAsync(`
             CREATE TABLE IF NOT EXISTS setting (
                 lang TEXT DEFAULT NULL,
-                caption_open BOOLEAN DEFAULT 0,
-                theme TEXT NOT NULL CHECK(theme IN ('light', 'dark')) DEFAULT 'light'
+                caption_open BOOLEAN DEFAULT 0
             );
         `);
 
@@ -814,7 +813,7 @@ export const getSettings = async (): Promise<Settings> => {
 
         return {
             lang: 'en',
-            caption_open: 0
+            caption_open: 0,
         };
         
     } catch (error) {
