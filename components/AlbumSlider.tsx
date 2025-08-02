@@ -92,6 +92,13 @@ const AlbumSlider = ({
         setUpdatedAssets(assets);
     }, [assets]);
 
+    // Ensure updatedAssets is always in sync when slider is visible
+    useEffect(() => {
+        if (visible && assets.length !== updatedAssets.length) {
+            setUpdatedAssets(assets);
+        }
+    }, [visible, assets, updatedAssets.length]);
+
     useFocusEffect(
         useCallback(() => {
             (async () => {
@@ -196,13 +203,36 @@ const AlbumSlider = ({
 
             await deleteAsset(asset.asset_id);
             
-            setUpdatedAssets(updatedAssets.filter(a => a.asset_id !== asset.asset_id));
+            // Filter out the deleted asset
+            const filteredAssets = updatedAssets.filter(a => a.asset_id !== asset.asset_id);
+            
+            // Update local state
+            setUpdatedAssets(filteredAssets);
+            
+            // Adjust current index if needed
+            const newIndex = Math.min(currentIndexState, filteredAssets.length - 1);
+            setCurrentIndexState(newIndex);
+            currentIndex.value = newIndex;
+            translateX.value = -newIndex * ITEM_WIDTH;
+            
+            // Update the parent's selected index
+            onAssetChange?.(newIndex);
+            
+            // Immediately call callbacks to update parent
             onDelete?.(asset);
-            onAssetsUpdate?.(updatedAssets.filter(a => a.asset_id !== asset.asset_id));
+            onAssetsUpdate?.(filteredAssets);
         } catch (error) {
             console.error('Error deleting asset:', error);
         }
-    }, [updatedAssets, onDelete, onAssetsUpdate]);
+    }, [updatedAssets, onDelete, onAssetsUpdate, currentIndexState, currentIndex, translateX, ITEM_WIDTH, onAssetChange]);
+
+    /**
+     * Handle close
+     */
+    const handleClose = useCallback(() => {
+        // Assets are already synced when deleted, so just close
+        onClose();
+    }, [onClose]);
 
     // ============================================================================
     // GESTURE HANDLERS
@@ -459,7 +489,7 @@ const AlbumSlider = ({
     const renderCloseButton = useMemo(() => {
         return (
             <TouchableOpacity
-                onPress={onClose}
+                onPress={handleClose}
                 className="absolute bg-black bg-opacity-70 w-10 h-10 rounded-full justify-center items-center z-10"
                 style={{
                     top: 20,
@@ -469,7 +499,7 @@ const AlbumSlider = ({
                 <Feather name="x" size={20} color="white" />
             </TouchableOpacity>
         );
-    }, [onClose]);
+    }, [handleClose]);
 
     /**
      * Render action buttons
@@ -520,10 +550,19 @@ const AlbumSlider = ({
         return null;
     }
 
+    // If no display assets after filtering, close the slider
+    if (displayAssets.length === 0) {
+        // Close the slider when no assets remain
+        setTimeout(() => {
+            onClose();
+        }, 100);
+        return null;
+    }
+
     return (
         <Modal
             visible={visible}
-            onRequestClose={onClose}
+            onRequestClose={handleClose}
             animationType="fade"
             presentationStyle="fullScreen"
         >

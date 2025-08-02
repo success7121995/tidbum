@@ -82,7 +82,13 @@ export const getMediaLibrary = async (): Promise<MediaLibraryResult> => {
 		
 		if (status === 'granted') {
 			// Permission already granted, get assets
-			const assetsResult = await MediaLibrary.getAssetsAsync();
+			// Get all assets with no limit
+			const assetsResult = await MediaLibrary.getAssetsAsync({
+				first: 10000, // Get up to 10,000 assets
+				sortBy: ['creationTime'],
+				mediaType: ['photo', 'video']
+			});
+			
 			const assetsWithDetails = await Promise.all(
 				assetsResult.assets.map(async (asset) => {
 					const details = await MediaLibrary.getAssetInfoAsync(asset.id);
@@ -122,7 +128,11 @@ export const getMediaLibrary = async (): Promise<MediaLibraryResult> => {
 		const { status: newStatus } = await MediaLibrary.requestPermissionsAsync();
 		
 		if (newStatus === 'granted') {
-			const assets = await MediaLibrary.getAssetsAsync();
+			const assets = await MediaLibrary.getAssetsAsync({
+				first: 10000, // Get up to 10,000 assets
+				sortBy: ['creationTime'],
+				mediaType: ['photo', 'video']
+			});
 			return { success: true, assets };
 		} else {
 			Alert.alert(

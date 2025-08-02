@@ -34,13 +34,8 @@ const CreateAlbumScreen = () => {
 				throw new Error('Failed to create album');
 			}
 
-			router.replace({
-				pathname: '/album/[album_id]',
-				params: {
-					album_id: albumId,
-					refresh: 'true',
-				},
-			});
+			// Go back to album list - the list will refresh automatically via useFocusEffect
+			router.back();
 		} catch (error) {
 			Alert.alert(text.error, text.failedToCreateAlbum);
 			throw error;

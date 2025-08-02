@@ -11,7 +11,7 @@ import { useSetting } from "./SettingProvider";
 // TYPES
 // ============================================================================
 interface AlbumContextType {
-    fetchAlbums?: () => void;
+    fetchAlbums?: () => Promise<void>;
     handleEditAlbum?: (album: Album, parentAlbumId?: string) => void;
     handleDeleteAlbum?: (albumId: string) => void;
     handleCreateAlbum?: (album: Album) => void;
@@ -50,6 +50,16 @@ export const useAlbum = () => {
 const AlbumProvider = ({ children }: { children: React.ReactNode }) => {
     const { language } = useSetting();
     const text = getLanguageText(language as Language);
+
+    /**
+     * Fetch albums - placeholder for future implementation
+     */
+    const fetchAlbums = useCallback(async () => {
+        // This is a placeholder - in a real implementation, you might want to
+        // trigger a refresh of the album list from the home screen
+        // For now, we'll just return a resolved promise
+        return Promise.resolve();
+    }, []);
 
     /**
      * Handle edit album
@@ -160,6 +170,7 @@ const AlbumProvider = ({ children }: { children: React.ReactNode }) => {
 
     return (
         <AlbumContext.Provider value={{
+            fetchAlbums,
             handleEditAlbum,
             handleAddAssets,
             handleSelectAssets,

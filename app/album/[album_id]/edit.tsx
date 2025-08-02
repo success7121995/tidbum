@@ -52,7 +52,7 @@ const AlbumEditScreen = () => {
 
             await updateAlbum(album_id as string, updateData);
 
-            // Navigate back
+            // Navigate back - AlbumScreen will refresh data on focus
             router.back();
         } catch (error) {
             console.error('Error updating album:', error);

@@ -10,7 +10,7 @@ import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
 interface AlbumScreenProps {
@@ -32,7 +32,6 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	// ============================================================================
 	// REFS
 	// ============================================================================
-	const loadedAlbumsRef = useRef<Set<string>>(new Set());
 
 	// ============================================================================
 	// CONTEXT
@@ -62,34 +61,22 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 			}
 			const albumData = await getAlbumById(albumId);
 			setAlbum(albumData);
-			// Mark this album as loaded
-			loadedAlbumsRef.current.add(albumId);
 		} catch (error) {
 			console.error('Error fetching album:', error);
 		} finally {
 			setIsLoading(false);
 		}
-	}, [albumId, album]);
+	}, [albumId]); // Remove album dependency to prevent unnecessary re-renders
 
 	/**
-	 * Fetch album on focus - only if we don't have data
+	 * Fetch album on focus - always refresh to get latest data
 	 */
 	useFocusEffect(
 		useCallback(() => {
-			// Only fetch if we don't have album data or if the albumId changed
-			if (!album || album.album_id !== albumId || !loadedAlbumsRef.current.has(albumId)) {
-				fetchAlbum();
-			}
-		}, [fetchAlbum, album, albumId])
+			// Always fetch to get latest data, but only show loading if we don't have data
+			fetchAlbum();
+		}, [fetchAlbum])
 	);
-
-	/**
-	 * Clean up loaded albums tracking when albumId changes
-	 */
-	useEffect(() => {
-		// Clear loaded albums when albumId changes to ensure fresh data
-		loadedAlbumsRef.current.clear();
-	}, [albumId]);
 
 	/**
 	 * Handle edit album
@@ -141,7 +128,6 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	 */
 	const handleSliderClose = () => {
 		setIsSliderOpen(false);
-		// No need to refresh album data on close
 	};
 
 	/**
@@ -164,13 +150,14 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 				assets: updatedAssets
 			};
 		});
-	}, []);
+	}, []); // Empty dependency array to prevent re-creation
 
 	/**
 	 * Handle delete
 	 * @param asset - The asset to delete
 	 */
 	const handleDelete = (asset: Asset) => {
+		// Update local state immediately for better UX
 		setAlbum(album => {
 			if (!album) return album;
 			return {
@@ -303,4 +290,4 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	);
 };
 
-export default AlbumScreen; 
+export default AlbumScreen;
