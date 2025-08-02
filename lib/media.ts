@@ -2,6 +2,7 @@
 import * as Linking from 'expo-linking';
 import * as MediaLibrary from 'expo-media-library';
 import { Alert } from 'react-native';
+import { deleteAsset, getExistingAssetIds } from './db';
 
 export interface MediaLibraryResult {
 	success: boolean;
@@ -48,7 +49,8 @@ export const checkAndRequestPermission = async (): Promise<PermissionStatus> => 
 		const { status } = await MediaLibrary.getPermissionsAsync();
 		
 		if (status === 'granted') {
-			// Permission already granted
+			// Permission already granted - start watcher
+			await initializeMediaLibraryWatcher();
 			return { status: 'granted', isRequesting: false };
 		}
 		
@@ -61,6 +63,8 @@ export const checkAndRequestPermission = async (): Promise<PermissionStatus> => 
 		const { status: newStatus } = await MediaLibrary.requestPermissionsAsync();
 		
 		if (newStatus === 'granted') {
+			// Permission granted - start watcher
+			await initializeMediaLibraryWatcher();
 			return { status: 'granted', isRequesting: false };
 		} else {
 			return { status: 'denied', isRequesting: false };
@@ -129,7 +133,7 @@ export const getMediaLibrary = async (): Promise<MediaLibraryResult> => {
 		
 		if (newStatus === 'granted') {
 			const assets = await MediaLibrary.getAssetsAsync({
-				first: 10000, // Get up to 10,000 assets
+				first: 100000, // Get up to 10,000 assets
 				sortBy: ['creationTime'],
 				mediaType: ['photo', 'video']
 			});
@@ -179,4 +183,135 @@ export const requestMediaLibraryPermission = async (): Promise<boolean> => {
 export const getMediaLibraryPermissionStatus = async (): Promise<'granted' | 'denied' | 'undetermined'> => {
 	const { status } = await MediaLibrary.getPermissionsAsync();
 	return status;
+};
+
+// ============================================================================
+// MEDIA LIBRARY WATCHER STATE
+// ============================================================================
+let currentSubscription: MediaLibrary.Subscription | null = null;
+
+// ============================================================================
+// MEDIA LIBRARY WATCHER FUNCTIONS
+// ============================================================================
+
+/**
+ * Start media library watcher
+ * @param onChange - Callback function to handle media library changes
+ * @returns MediaLibrary.Subscription | null
+ */
+export const startMediaLibraryWatcher = async (onChange: (event: MediaLibrary.MediaLibraryAssetsChangeEvent) => void): Promise<MediaLibrary.Subscription | null> => {
+	try {
+		const { status } = await MediaLibrary.getPermissionsAsync();
+		if (status !== 'granted') {
+			console.warn('Media library permission not granted, cannot start watcher');
+			return null;
+		}
+
+		const subscription = MediaLibrary.addListener(onChange);
+
+		return subscription;
+	} catch (error) {
+		console.error('Failed to start media library watcher:', error);
+		return null;
+	}
+};
+
+/**
+ * Stop media library watcher
+ * @param subscription - The subscription to stop
+ */
+export const stopMediaLibraryWatcher = (subscription: MediaLibrary.Subscription | null): void => {
+	if (subscription) {
+		subscription.remove();
+	}
+};
+
+// Global callback for triggering UI refresh
+let onDatabaseChangeCallback: (() => void) | null = null;
+
+/**
+ * Set callback for database change notifications
+ * @param callback - Function to call when database changes
+ */
+export const setDatabaseChangeCallback = (callback: (() => void) | null) => {
+	onDatabaseChangeCallback = callback;
+};
+
+/**
+ * Handle media library changes
+ * Automatically removes deleted assets from database
+ * @param event - Media library change event
+ */
+export const handleMediaLibraryChange = async (event: MediaLibrary.MediaLibraryAssetsChangeEvent): Promise<void> => {
+	try {
+		// Get current media library assets
+		const { assets } = await MediaLibrary.getAssetsAsync({
+			first: 10000,
+			sortBy: ['creationTime'],
+			mediaType: ['photo', 'video']
+		});
+
+		// Get existing asset IDs from database
+		const existingAssetIds = await getExistingAssetIds();
+		
+		// Find assets that exist in database but not in media library (deleted)
+		const deletedAssetIds = Array.from(existingAssetIds).filter(
+			dbAssetId => !assets.some(mlAsset => mlAsset.id === dbAssetId)
+		);
+
+		// Remove deleted assets from database
+		for (const assetId of deletedAssetIds) {
+			await deleteAsset(assetId);
+		}
+
+		if (deletedAssetIds.length > 0) {
+			// Trigger UI refresh if callback is set
+			if (onDatabaseChangeCallback) {
+				onDatabaseChangeCallback();
+			}
+		}
+	} catch (error) {
+		console.error('Error handling media library change:', error);
+	}
+};
+
+/**
+ * Check if media library watcher is active
+ * @returns boolean
+ */
+export const isMediaLibraryWatcherActive = (): boolean => {
+	return currentSubscription !== null;
+};
+
+/**
+ * Initialize media library watcher
+ * Starts the watcher if permission is granted
+ * @returns boolean - true if watcher was started successfully
+ */
+export const initializeMediaLibraryWatcher = async (): Promise<boolean> => {
+	if (currentSubscription) {
+		return true; // Already active
+	}
+
+	currentSubscription = await startMediaLibraryWatcher(handleMediaLibraryChange);
+	return currentSubscription !== null;
+};
+
+/**
+ * Cleanup media library watcher
+ * Stops the watcher and cleans up resources
+ */
+export const cleanupMediaLibraryWatcher = (): void => {
+	stopMediaLibraryWatcher(currentSubscription);
+	currentSubscription = null;
+};
+
+/**
+ * Restart media library watcher
+ * Useful when permission status changes
+ * @returns boolean - true if watcher was restarted successfully
+ */
+export const restartMediaLibraryWatcher = async (): Promise<boolean> => {
+	cleanupMediaLibraryWatcher();
+	return await initializeMediaLibraryWatcher();
 };

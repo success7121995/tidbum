@@ -3,7 +3,7 @@ import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActionSheetIOS, Dimensions, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+import { ActionSheetIOS, Dimensions, FlatList, GestureResponderEvent, Image, PanResponder, PanResponderGestureState, Text, TouchableOpacity, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
     runOnJS,
@@ -12,6 +12,7 @@ import Animated, {
     withSpring,
     withTiming
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSetting } from "../constant/SettingProvider";
 import { getLanguageText, Language } from "../lib/lang";
 import { type Album } from "../types/album";
@@ -23,6 +24,106 @@ interface AlbumProps {
     onSelectionChange?: (selectedAssets: Asset[]) => void;
     onAssetsUpdate?: (updatedAssets: Asset[]) => void;
 }
+
+/**
+ * Asset item component - moved outside to prevent recreation
+ */
+const AssetItem = React.memo(({ 
+    asset, 
+    index, 
+    isSelected, 
+    isCurrentlyDragged, 
+    isDropTarget, 
+    onPress, 
+    onLongPress,
+    itemSize,
+    animatedStyle,
+    isScrolling,
+    isHovered
+}: { 
+    asset: Asset; 
+    index: number; 
+    isSelected: boolean; 
+    isCurrentlyDragged: boolean; 
+    isDropTarget: boolean; 
+    onPress: () => void; 
+    onLongPress: () => void;
+    itemSize: number;
+    animatedStyle: any;
+    isScrolling: boolean;
+    isHovered: boolean;
+}) => {
+    
+    const itemStyle = {
+        width: itemSize,
+        height: itemSize,
+        position: 'relative' as const,
+        opacity: isCurrentlyDragged ? 0.3 : 1,
+        borderWidth: isDropTarget ? 2 : 0,
+        borderColor: isDropTarget ? '#3B82F6' : 'transparent',
+        borderRadius: isDropTarget ? 8 : 0,
+    };
+
+    return (
+        <Animated.View style={isCurrentlyDragged ? animatedStyle : undefined}>
+            <TouchableOpacity
+                style={itemStyle}
+                onPress={isScrolling ? undefined : onPress}
+                onLongPress={isScrolling ? undefined : onLongPress}
+                activeOpacity={isScrolling ? 1 : 0.7}
+                delayPressIn={150}
+                delayLongPress={500}
+                disabled={isScrolling}
+            >
+                <Image 
+                    source={{ uri: asset.uri }} 
+                    className="w-full h-full object-cover"
+                />
+                
+                {/* Hover overlay for visual feedback */}
+                {isHovered && (
+                    <View className="absolute inset-0 bg-blue-500 bg-opacity-30" />
+                )}
+                
+                {/* Video indicator */}
+                {asset.mediaType === 'video' && (
+                    <View className="absolute top-1 right-1">
+                        <View className="bg-black bg-opacity-50 rounded-full p-1">
+                            <Feather name="play" size={12} color="white" />
+                        </View>
+                    </View>
+                )}
+
+                {/* Selection indicator - MediaLibrary style */}
+                {isSelected && (
+                    <View className="absolute top-1 right-1">
+                        <View className="bg-blue-500 rounded-full w-6 h-6 items-center justify-center border-2 border-white shadow-sm">
+                            <Feather name="check" size={12} color="white" />
+                        </View>
+                    </View>
+                )}
+
+                {/* Drop target indicator */}
+                {isDropTarget && (
+                    <View className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-lg items-center justify-center">
+                        <View className="bg-blue-500 rounded-full p-2">
+                            <Feather name="arrow-down" size={16} color="white" />
+                        </View>
+                    </View>
+                )}
+
+                {/* Drag indicator for dragged item */}
+                {isCurrentlyDragged && (
+                    <View className="absolute bottom-2 left-2">
+                        <View className="bg-blue-500 bg-opacity-80 rounded-full p-1">
+                            <Feather name="move" size={12} color="white" />
+                        </View>
+                    </View>
+                )}
+            </TouchableOpacity>
+        </Animated.View>
+    );
+});
 
 const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdate }: AlbumProps) => {
     // ============================================================================
@@ -45,12 +146,27 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isScrolling, setIsScrolling] = useState(false);
+    const [isSwipeSelecting, setIsSwipeSelecting] = useState(false);
+    const [lastSwipePosition, setLastSwipePosition] = useState<{ x: number; y: number } | null>(null);
+    const [toggledAssetIds, setToggledAssetIds] = useState<Set<string>>(new Set());
+    const [lastProcessedAssetId, setLastProcessedAssetId] = useState<string | null>(null);
+    const [currentHoverAssetId, setCurrentHoverAssetId] = useState<string | null>(null);
+    const [initialAssetIndex, setInitialAssetIndex] = useState<number | null>(null);
+    const [isDeselectGesture, setIsDeselectGesture] = useState<boolean | null>(null);
+    const [lastProcessedIndex, setLastProcessedIndex] = useState<number | null>(null);
+    const [gestureStartPosition, setGestureStartPosition] = useState<{ x: number; y: number } | null>(null);
+    const [hasHorizontalMovement, setHasHorizontalMovement] = useState(false);
+    const [hasVerticalMovement, setHasVerticalMovement] = useState(false);
+    const [gestureLockedAsScroll, setGestureLockedAsScroll] = useState(false);
+    const [scrollOffset, setScrollOffset] = useState(0);
 
     // ============================================================================
     // CONTEXT
     // ============================================================================
     const { language, theme } = useSetting();
     const text = getLanguageText(language as Language);
+    const insets = useSafeAreaInsets();
 
     // ============================================================================
     // EFFECTS
@@ -68,10 +184,36 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         if (assetsChanged) {
             setAssets(currentAssets);
             prevAssetsRef.current = currentAssets;
+            
+            // Clear selection if selected assets are no longer in the list
+            setSelectedAssets(prev => {
+                const newSet = new Set(prev);
+                let hasChanges = false;
+                
+                for (const assetId of prev) {
+                    if (!currentAssets.some(asset => asset.id === assetId)) {
+                        newSet.delete(assetId);
+                        hasChanges = true;
+                    }
+                }
+                
+                if (hasChanges) {
+                    // Update selection callback
+                    const selectedAssetsArray = currentAssets.filter(asset => newSet.has(asset.id));
+                    onSelectionChange?.(selectedAssetsArray);
+                    
+                    // Exit selection mode if no assets are selected
+                    if (newSet.size === 0) {
+                        setIsSelectionMode(false);
+                    }
+                }
+                
+                return newSet;
+            });
         }
         
         setSubAlbums(album.subAlbums || []);
-    }, [album.album_id, album.assets, album.subAlbums]); // Sync when album ID changes or when assets/subAlbums change
+    }, [album.album_id, album.assets, album.subAlbums, onSelectionChange]); // Added onSelectionChange to dependencies
     
     // Load expand state from AsyncStorage when album changes
     useEffect(() => {
@@ -135,6 +277,135 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     // ============================================================================
     // HANDLERS
     // ============================================================================
+
+    /**
+     * Get row and column from asset index
+     */
+    const getRowAndColumn = useCallback((index: number) => {
+        return {
+            row: Math.floor(index / numColumns),
+            col: index % numColumns
+        };
+    }, [numColumns]);
+
+    /**
+     * Get asset index from row and column
+     */
+    const getAssetIndex = useCallback((row: number, col: number) => {
+        return row * numColumns + col;
+    }, [numColumns]);
+
+    /**
+     * Get all asset indices between two positions (inclusive)
+     */
+    const getAssetIndicesBetween = useCallback((startIndex: number, endIndex: number) => {
+        const indices: number[] = [];
+        const startPos = getRowAndColumn(startIndex);
+        const endPos = getRowAndColumn(endIndex);
+        
+        // Ensure start is always the "earlier" position
+        let actualStart = startIndex;
+        let actualEnd = endIndex;
+        if (startIndex > endIndex) {
+            actualStart = endIndex;
+            actualEnd = startIndex;
+        }
+        
+        for (let i = actualStart; i <= actualEnd; i++) {
+            indices.push(i);
+        }
+        
+        return indices;
+    }, [getRowAndColumn]);
+
+    /**
+     * Check if there's sufficient horizontal movement to trigger selection
+     */
+    const hasSufficientHorizontalMovement = useCallback((startPos: { x: number; y: number }, currentPos: { x: number; y: number }) => {
+        const horizontalThreshold = 10; // Increased to 15px for better scroll detection
+        const dx = Math.abs(currentPos.x - startPos.x);
+        const dy = Math.abs(currentPos.y - startPos.y);
+        
+        // Require significant horizontal movement AND horizontal movement should be greater than vertical
+        return dx >= horizontalThreshold && dx > dy * 0.5;
+    }, []);
+
+    /**
+     * Check if there's significant vertical movement (scrolling)
+     */
+    const hasSignificantVerticalMovement = useCallback((startPos: { x: number; y: number }, currentPos: { x: number; y: number }) => {
+        const verticalThreshold = 10; // 10px vertical movement threshold
+        const dx = Math.abs(currentPos.x - startPos.x);
+        const dy = Math.abs(currentPos.y - startPos.y);
+        
+        // Check if vertical movement is significant and greater than horizontal
+        return dy >= verticalThreshold && dy > dx * 1.5;
+    }, []);
+
+    /**
+     * Get item at specific screen position
+     */
+    const getItemAtPosition = useCallback((position: { x: number; y: number }) => {
+        // Calculate which item is at this position
+        const adjustedX = position.x - gap;
+        
+        // Use a simpler approach - just account for safe area and a fixed offset
+        const adjustedY = position.y - insets.top - 300; // Reduced offset to 60px
+        
+        if (adjustedX < 0 || adjustedY < 0) return null;
+
+        const column = Math.floor(adjustedX / (itemSize + gap));
+        const row = Math.floor(adjustedY / (itemSize + gap));
+        
+        if (column < 0 || column >= numColumns || row < 0) return null;
+
+        const index = row * numColumns + column;
+        
+        return assets[index] || null;
+    }, [assets, itemSize, gap, numColumns, insets.top]);
+
+    /**
+     * Process deterministic selection based on gesture type
+     */
+    const processDeterministicSelection = useCallback((currentIndex: number) => {
+        if (initialAssetIndex === null || isDeselectGesture === null) return;
+        
+        // Get all indices between initial and current position
+        const indicesToProcess = getAssetIndicesBetween(initialAssetIndex, currentIndex);
+        
+        indicesToProcess.forEach(index => {
+            if (index >= 0 && index < assets.length) {
+                const asset = assets[index];
+                const assetId = asset.id;
+                
+                // Only process if not already toggled in this gesture
+                if (!toggledAssetIds.has(assetId)) {
+                    const isCurrentlySelected = selectedAssets.has(assetId);
+                    
+                    if (isDeselectGesture) {
+                        // Deselect gesture: unselect if currently selected
+                        if (isCurrentlySelected) {
+                            setSelectedAssets(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(assetId);
+                                return newSet;
+                            });
+                        }
+                    } else {
+                        // Select gesture: select if currently unselected
+                        if (!isCurrentlySelected) {
+                            setSelectedAssets(prev => new Set([...prev, assetId]));
+                        }
+                    }
+                    
+                    // Track this asset as toggled
+                    setToggledAssetIds(prev => new Set([...prev, assetId]));
+                }
+            }
+        });
+        
+        setLastProcessedIndex(currentIndex);
+    }, [initialAssetIndex, isDeselectGesture, assets, selectedAssets, toggledAssetIds, getAssetIndicesBetween]);
 
     /**
      * Handle album delete
@@ -329,9 +600,12 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     /**
      * Handle gesture events
      */
-    const gestureHandler = Gesture.Pan()
+    const gestureHandler = useMemo(() => Gesture.Pan()
         .onStart((event) => {
             'worklet';
+            // Don't start drag-and-drop if in selection mode
+            if (isSelectionMode) return;
+            
             const touchX = event.x;
             const touchY = event.y;
             
@@ -374,6 +648,9 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         })
         .onUpdate((event) => {
             'worklet';
+            // Don't update drag-and-drop if in selection mode
+            if (isSelectionMode) return;
+            
             const currentDraggedType = draggedItemType.value;
             const currentDraggedIndex = draggedItemIndex.value;
             
@@ -406,6 +683,9 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         })
         .onEnd(() => {
             'worklet';
+            // Don't end drag-and-drop if in selection mode
+            if (isSelectionMode) return;
+            
             // Reset animations
             translateX.value = withSpring(0);
             translateY.value = withSpring(0);
@@ -421,7 +701,146 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             runOnJS(setDraggedItemJS)(null);
             runOnJS(setDropTargetIndexJS)(null);
             runOnJS(setIsDraggingJS)(false);
+        }), [isSelectionMode, subAlbums.length, assets.length, screenWidth, setDraggedItemJS, setDropTargetIndexJS, setIsDraggingJS, getGridPositionWorklet, reorderAlbums, reorderAssets]);
+
+    // ============================================================================
+    // PAN RESPONDER FOR SWIPE SELECTION (ONLY IN SELECTION MODE)
+    // ============================================================================
+    const swipeSelectionPanResponder = useMemo(() => {
+        if (!isSelectionMode) return null;
+
+        return PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+                // Only start pan responder if we're not scrolling and there's significant movement
+                return !isScrolling && (Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10);
+            },
+            onPanResponderGrant: (evt: GestureResponderEvent) => {
+                const startPosition = { x: evt.nativeEvent.pageX, y: evt.nativeEvent.pageY };
+                setGestureStartPosition(startPosition);
+                setLastSwipePosition(startPosition);
+                
+                // Reset all gesture state
+                setToggledAssetIds(new Set());
+                setLastProcessedAssetId(null);
+                setCurrentHoverAssetId(null);
+                setInitialAssetIndex(null);
+                setIsDeselectGesture(null);
+                setLastProcessedIndex(null);
+                setHasHorizontalMovement(false);
+                setHasVerticalMovement(false);
+                setGestureLockedAsScroll(false);
+                
+                // Don't start selection mode immediately - wait for horizontal movement
+                setIsSwipeSelecting(false);
+            },
+            onPanResponderMove: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+                if (!gestureStartPosition) return;
+
+                const currentPosition = { x: evt.nativeEvent.pageX, y: evt.nativeEvent.pageY };
+                
+                // If gesture is locked as scroll, don't process selection
+                if (gestureLockedAsScroll) {
+                    setLastSwipePosition(currentPosition);
+                    return;
+                }
+                
+                // Check for vertical movement first
+                if (!hasVerticalMovement) {
+                    const hasVertical = hasSignificantVerticalMovement(gestureStartPosition, currentPosition);
+                    setHasVerticalMovement(hasVertical);
+                    
+                    // If there's significant vertical movement, lock the gesture as scroll
+                    if (hasVertical) {
+                        setGestureLockedAsScroll(true);
+                        setIsSwipeSelecting(false); // Ensure selection mode is off
+                        setLastSwipePosition(currentPosition);
+                        return;
+                    }
+                }
+                
+                // Check for horizontal movement threshold
+                if (!hasHorizontalMovement) {
+                    const hasHorizontal = hasSufficientHorizontalMovement(gestureStartPosition, currentPosition);
+                    setHasHorizontalMovement(hasHorizontal);
+                    
+                    // Only start selection mode if there's horizontal movement
+                    if (hasHorizontal) {
+                        setIsSwipeSelecting(true);
+                        
+                        // Process the initial asset if we started on one
+                        const initialAsset = getItemAtPosition(gestureStartPosition);
+                        if (initialAsset) {
+                            const initialIndex = assets.indexOf(initialAsset);
+                            setInitialAssetIndex(initialIndex);
+                            
+                            // Determine gesture type based on initial asset's selection state
+                            const isCurrentlySelected = selectedAssets.has(initialAsset.id);
+                            setIsDeselectGesture(isCurrentlySelected);
+                            
+                            // Process the initial asset
+                            processDeterministicSelection(initialIndex);
+                            setLastProcessedAssetId(initialAsset.id);
+                            setCurrentHoverAssetId(initialAsset.id);
+                        }
+                    }
+                    
+                    setLastSwipePosition(currentPosition);
+                    return;
+                }
+                
+                // Only process selection if we have horizontal movement and are in selection mode
+                if (!isSwipeSelecting) {
+                    setLastSwipePosition(currentPosition);
+                    return;
+                }
+                
+                // Get the asset at the current position
+                const currentAsset = getItemAtPosition(currentPosition);
+                
+                // Update hover state for visual feedback
+                setCurrentHoverAssetId(currentAsset?.id || null);
+                
+                if (currentAsset) {
+                    const currentIndex = assets.indexOf(currentAsset);
+                    
+                    // Process deterministic selection
+                    processDeterministicSelection(currentIndex);
+                    setLastProcessedAssetId(currentAsset.id);
+                }
+
+                setLastSwipePosition(currentPosition);
+            },
+            onPanResponderRelease: () => {
+                setIsSwipeSelecting(false);
+                setLastSwipePosition(null);
+                setToggledAssetIds(new Set());
+                setLastProcessedAssetId(null);
+                setCurrentHoverAssetId(null);
+                setInitialAssetIndex(null);
+                setIsDeselectGesture(null);
+                setLastProcessedIndex(null);
+                setHasHorizontalMovement(false);
+                setHasVerticalMovement(false);
+                setGestureLockedAsScroll(false);
+                setGestureStartPosition(null);
+            },
+            onPanResponderTerminate: () => {
+                setIsSwipeSelecting(false);
+                setLastSwipePosition(null);
+                setToggledAssetIds(new Set());
+                setLastProcessedAssetId(null);
+                setCurrentHoverAssetId(null);
+                setInitialAssetIndex(null);
+                setIsDeselectGesture(null);
+                setLastProcessedIndex(null);
+                setHasHorizontalMovement(false);
+                setHasVerticalMovement(false);
+                setGestureLockedAsScroll(false);
+                setGestureStartPosition(null);
+            },
         });
+    }, [isSelectionMode, isScrolling, selectedAssets, assets, hasSufficientHorizontalMovement, hasSignificantVerticalMovement, getItemAtPosition, processDeterministicSelection, gestureStartPosition, gestureLockedAsScroll, hasHorizontalMovement, hasVerticalMovement, isSwipeSelecting]);
 
     // ============================================================================
     // ANIMATED STYLES
@@ -443,104 +862,45 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     // ============================================================================
 
     /**
-     * Render individual asset item
-     * @param asset - The asset to render
-     * @param index - The index of the asset
-     * @returns The rendered asset item
-     */
-    const AssetItem = useMemo(() => {
-        return ({ asset, index }: { asset: Asset; index: number }) => {
-            const isCurrentlyDragged = draggedItem?.type === 'asset' && draggedItem.index === index;
-            const isDropTarget = dropTargetIndex === index && !isCurrentlyDragged && draggedItem?.type === 'asset';
-            const isSelected = selectedAssets.has(asset.id);
-            
-            const itemStyle = {
-                width: itemSize,
-                height: itemSize,
-                position: 'relative' as const,
-                opacity: isCurrentlyDragged ? 0.3 : 1,
-                borderWidth: isDropTarget ? 2 : 0,
-                borderColor: isDropTarget ? '#3B82F6' : 'transparent',
-                borderRadius: isDropTarget ? 8 : 0,
-            };
-
-            return (
-                <Animated.View style={isCurrentlyDragged ? animatedStyle : undefined}>
-                    <TouchableOpacity
-                        style={itemStyle}
-                        onPress={() => {
-                            if (isSelectionMode) {
-                                toggleAssetSelection(asset.id);
-                            } else {
-                                onAssetPress?.(asset);
-                            }
-                        }}
-                        onLongPress={() => {
-                            if (!isSelectionMode) {
-                                enterSelectionModeAndSelect(asset.id);
-                            } else {
-                                toggleAssetSelection(asset.id);
-                            }
-                        }}
-                        activeOpacity={0.7}
-                    >
-                        <Image 
-                            source={{ uri: asset.uri }} 
-                            className="w-full h-full object-cover"
-                        />
-                        
-                        {/* Video indicator */}
-                        {asset.mediaType === 'video' && (
-                            <View className="absolute top-1 right-1">
-                                <View className="bg-black bg-opacity-50 rounded-full p-1">
-                                    <Feather name="play" size={12} color="white" />
-                                </View>
-                            </View>
-                        )}
-
-                        {/* Selection indicator - MediaLibrary style */}
-                        {isSelected && (
-                            <View className="absolute top-1 right-1">
-                                <View className="bg-blue-500 rounded-full w-6 h-6 items-center justify-center border-2 border-white shadow-sm">
-                                    <Feather name="check" size={12} color="white" />
-                                </View>
-                            </View>
-                        )}
-
-                        {/* Drop target indicator */}
-                        {isDropTarget && (
-                            <View className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-lg items-center justify-center">
-                                <View className="bg-blue-500 rounded-full p-2">
-                                    <Feather name="arrow-down" size={16} color="white" />
-                                </View>
-                            </View>
-                        )}
-
-                        {/* Drag indicator for dragged item */}
-                        {isCurrentlyDragged && (
-                            <View className="absolute bottom-2 left-2">
-                                <View className="bg-blue-500 bg-opacity-80 rounded-full p-1">
-                                    <Feather name="move" size={12} color="white" />
-                                </View>
-                            </View>
-                        )}
-                    </TouchableOpacity>
-                </Animated.View>
-            );
-        };
-    }, [itemSize, onAssetPress, draggedItem, dropTargetIndex, animatedStyle, isSelectionMode, selectedAssets, toggleAssetSelection, enterSelectionModeAndSelect]);
-
-    /**
      * Render asset item for FlatList
      * @param item - The item to render
      * @param index - The index of the item
      * @returns The rendered asset item
      */
-    const renderAssetItem = useMemo(() => {
-        return ({ item, index }: { item: Asset; index: number }) => (
-            <AssetItem asset={item} index={index} />
+    const renderAssetItem = useCallback(({ item, index }: { item: Asset; index: number }) => {
+        const isCurrentlyDragged = draggedItem?.type === 'asset' && draggedItem.index === index;
+        const isDropTarget = dropTargetIndex === index && !isCurrentlyDragged && draggedItem?.type === 'asset';
+        const isSelected = selectedAssets.has(item.id);
+        const isHovered = currentHoverAssetId === item.id;
+        
+        return (
+            <AssetItem 
+                asset={item} 
+                index={index}
+                isSelected={isSelected}
+                isCurrentlyDragged={isCurrentlyDragged}
+                isDropTarget={isDropTarget}
+                onPress={() => {
+                    if (isSelectionMode) {
+                        toggleAssetSelection(item.id);
+                    } else {
+                        onAssetPress?.(item);
+                    }
+                }}
+                onLongPress={() => {
+                    if (!isSelectionMode) {
+                        enterSelectionModeAndSelect(item.id);
+                    } else {
+                        toggleAssetSelection(item.id);
+                    }
+                }}
+                itemSize={itemSize}
+                animatedStyle={animatedStyle}
+                isScrolling={isScrolling}
+                isHovered={isHovered}
+            />
         );
-    }, [AssetItem]);
+    }, [draggedItem, dropTargetIndex, selectedAssets, isSelectionMode, toggleAssetSelection, onAssetPress, enterSelectionModeAndSelect, itemSize, animatedStyle, isScrolling, currentHoverAssetId]);
 
     /**
      * Key extractor for FlatList
@@ -613,122 +973,235 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     }, [SubAlbumItem]);
 
     return (
-        <GestureDetector gesture={gestureHandler}>
-            <Animated.View className="flex-1">
-                {/* Selection mode header - MediaLibrary style */}
-                {isSelectionMode && (
-                    <View className={`px-4 py-3 ${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} border-b ${theme === 'dark' ? 'border-dark-border' : 'border-light-border'}`}>
-                        <View className="flex-row items-center justify-between">
-                            <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
-                                {selectedAssets.size} {selectedAssets.size === 1 ? text.item : text.items} {text.selected}
-                            </Text>
+        <>
+            {isSelectionMode ? (
+                // When in selection mode, don't use GestureDetector to allow PanResponder to work
+                <Animated.View className="flex-1">
+                    {/* Selection mode header - MediaLibrary style */}
+                    {isSelectionMode && (
+                        <View className={`px-4 py-3 ${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} border-b ${theme === 'dark' ? 'border-dark-border' : 'border-light-border'}`}>
+                            <View className="flex-row items-center justify-between">
+                                <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
+                                    {selectedAssets.size} {selectedAssets.size === 1 ? text.item : text.items} {text.selected}
+                                </Text>
 
-                            {/* Button Group */}
-                            <View className="flex-row items-center gap-2">
-                                {/* Delete Button */}
-                                <TouchableOpacity 
-                                    onPress={handleDeleteSelectedAssets}
-                                    className="px-4 py-2 bg-red-500 rounded-lg"
-                                >
-                                    <Text className="text-white font-medium">{text.delete}</Text>
-                                </TouchableOpacity>
+                                {/* Button Group */}
+                                <View className="flex-row items-center gap-2">
+                                    {/* Delete Button */}
+                                    <TouchableOpacity 
+                                        onPress={handleDeleteSelectedAssets}
+                                        className="px-4 py-2 bg-red-500 rounded-lg"
+                                    >
+                                        <Text className="text-white font-medium">{text.delete}</Text>
+                                    </TouchableOpacity>
 
-                                <TouchableOpacity 
-                                    onPress={exitSelectionMode}
-                                    className="px-4 py-2 bg-blue-500 rounded-lg"
-                                >
-                                    <Text className="text-white font-medium">{text.cancel}</Text>
-                                </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        onPress={exitSelectionMode}
+                                        className="px-4 py-2 bg-blue-500 rounded-lg"
+                                    >
+                                        <Text className="text-white font-medium">{text.cancel}</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         </View>
-                    </View>
-                )}
+                    )}
 
-                {/* Sub-albums */}
-                {subAlbums && subAlbums.length > 0 && (
-                    <View className="px-4 mb-4">
+                    {/* Sub-albums */}
+                    {subAlbums && subAlbums.length > 0 && (
+                        <View className="px-4 mb-4">
 
-                        {/* Header */}
-                        <View className="flex-row items-center justify-between mb-3">
-                            <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
-                                {text.folders} ({subAlbums.length}) 
-                            </Text>
+                            {/* Header */}
+                            <View className="flex-row items-center justify-between mb-3">
+                                <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
+                                    {text.folders} ({subAlbums.length}) 
+                                </Text>
 
-                            {/* Expand/Collapse button */}
-                            <TouchableOpacity 
-                                onPress={handleSubAlbumExpandCollapse}
-                                className="p-2"
-                            >
-                                <Feather 
-                                    name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-                                    size={20} 
-                                    color={theme === 'dark' ? '#cbd5e1' : '#64748b'} 
+                                {/* Expand/Collapse button */}
+                                <TouchableOpacity 
+                                    onPress={handleSubAlbumExpandCollapse}
+                                    className="p-2"
+                                >
+                                    <Feather 
+                                        name={isExpanded ? 'chevron-up' : 'chevron-down'} 
+                                        size={20} 
+                                        color={theme === 'dark' ? '#cbd5e1' : '#64748b'} 
+                                    />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* List - only show when expanded */}
+                            {isExpanded && (
+                                <FlatList
+                                    ref={albumListRef}
+                                    data={subAlbums}
+                                    renderItem={renderSubAlbumItem}
+                                    keyExtractor={(item) => item.album_id || ''}
+                                    numColumns={isTablet ? 5 : 3}
+                                    columnWrapperStyle={{ 
+                                        justifyContent: 'flex-start',
+                                        gap: 2
+                                    }}
+                                    showsVerticalScrollIndicator={false}
+                                    contentContainerStyle={{ paddingBottom: 20 }}
+                                    removeClippedSubviews={false}
+                                    getItemLayout={(data, index) => ({
+                                        length: 200, // Approximate height of each item
+                                        offset: 200 * Math.floor(index / (isTablet ? 5 : 3)),
+                                        index,
+                                    })}
                                 />
-                            </TouchableOpacity>
+                            )}
                         </View>
+                    )}
 
-                        {/* List - only show when expanded */}
-                        {isExpanded && (
-                            <FlatList
-                                ref={albumListRef}
-                                data={subAlbums}
-                                renderItem={renderSubAlbumItem}
-                                keyExtractor={(item) => item.album_id || ''}
-                                numColumns={isTablet ? 5 : 3}
-                                columnWrapperStyle={{ 
-                                    justifyContent: 'flex-start',
-                                    gap: 2
-                                }}
-                                showsVerticalScrollIndicator={false}
-                                contentContainerStyle={{ paddingBottom: 20 }}
-                                removeClippedSubviews={false}
-                                getItemLayout={(data, index) => ({
-                                    length: 200, // Approximate height of each item
-                                    offset: 200 * Math.floor(index / (isTablet ? 5 : 3)),
-                                    index,
-                                })}
-                            />
-                        )}
-                    </View>
-                )}
-
-                {/* Assets Grid */}
-                {assets && assets.length > 0 ? (
-                    <>
-                        <View className="px-4 mb-3">
-                            <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
-                                {text.media} ({assets.length})
+                    {/* Assets Grid */}
+                    {assets && assets.length > 0 ? (
+                        <>
+                            <View className="px-4 mb-3">
+                                <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
+                                    {text.media} ({assets.length})
+                                </Text>
+                            </View>
+                            <View 
+                                className="flex-1"
+                                {...(swipeSelectionPanResponder?.panHandlers || {})}
+                            >
+                                <FlatList
+                                    ref={flatListRef}
+                                    className="flex-1"
+                                    data={assets}
+                                    numColumns={numColumns}
+                                    renderItem={renderAssetItem}
+                                    keyExtractor={keyExtractor}
+                                    showsVerticalScrollIndicator={false}
+                                    removeClippedSubviews={true}
+                                    maxToRenderPerBatch={20}
+                                    windowSize={10}
+                                    initialNumToRender={20}
+                                    columnWrapperStyle={{ gap: gap }}
+                                    contentContainerStyle={{ gap: gap, paddingHorizontal: gap }}
+                                    scrollEventThrottle={16}
+                                    onScroll={(event) => {
+                                        setScrollOffset(event.nativeEvent.contentOffset.y);
+                                    }}
+                                    onScrollBeginDrag={() => setIsScrolling(true)}
+                                    onScrollEndDrag={() => setIsScrolling(false)}
+                                    onMomentumScrollBegin={() => setIsScrolling(true)}
+                                    onMomentumScrollEnd={() => setIsScrolling(false)}
+                                />
+                            </View>
+                        </>
+                    ) : (
+                        <View className="flex-1 items-center justify-center px-4">
+                            <Feather name="image" size={48} color={theme === 'dark' ? '#cbd5e1' : '#64748b'} />
+                            <Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} text-center mt-4`}>
+                                {text.noMediaInAlbum}
+                            </Text>
+                            <Text className={`${theme === 'dark' ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'} text-center text-sm mt-2`}>
+                                {text.tapToAdd}
                             </Text>
                         </View>
-                        <FlatList
-                            ref={flatListRef}
-                            className="flex-1"
-                            data={assets}
-                            numColumns={numColumns}
-                            renderItem={renderAssetItem}
-                            keyExtractor={keyExtractor}
-                            showsVerticalScrollIndicator={false}
-                            removeClippedSubviews={true}
-                            maxToRenderPerBatch={20}
-                            windowSize={10}
-                            initialNumToRender={20}
-                            columnWrapperStyle={{ gap: gap }}
-                            contentContainerStyle={{ gap: gap, paddingHorizontal: gap }}
-                        />
-                    </>
-                ) : (
-                    <View className="flex-1 items-center justify-center px-4">
-                        <Feather name="image" size={48} color={theme === 'dark' ? '#cbd5e1' : '#64748b'} />
-                        <Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} text-center mt-4`}>
-                            {text.noMediaInAlbum}
-                        </Text>
-                        <Text className={`${theme === 'dark' ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'} text-center text-sm mt-2`}>
-                            {text.tapToAdd}
-                        </Text>
-                    </View>
-                )}
-            </Animated.View>
-        </GestureDetector>
+                    )}
+                </Animated.View>
+            ) : (
+                // When NOT in selection mode, use GestureDetector for drag-and-drop
+                <GestureDetector gesture={gestureHandler}>
+                    <Animated.View className="flex-1">
+                        {/* Sub-albums */}
+                        {subAlbums && subAlbums.length > 0 && (
+                            <View className="px-4 mb-4">
+
+                                {/* Header */}
+                                <View className="flex-row items-center justify-between mb-3">
+                                    <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
+                                        {text.folders} ({subAlbums.length}) 
+                                    </Text>
+
+                                    {/* Expand/Collapse button */}
+                                    <TouchableOpacity 
+                                        onPress={handleSubAlbumExpandCollapse}
+                                        className="p-2"
+                                    >
+                                        <Feather 
+                                            name={isExpanded ? 'chevron-up' : 'chevron-down'} 
+                                            size={20} 
+                                            color={theme === 'dark' ? '#cbd5e1' : '#64748b'} 
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* List - only show when expanded */}
+                                {isExpanded && (
+                                    <FlatList
+                                        ref={albumListRef}
+                                        data={subAlbums}
+                                        renderItem={renderSubAlbumItem}
+                                        keyExtractor={(item) => item.album_id || ''}
+                                        numColumns={isTablet ? 5 : 3}
+                                        columnWrapperStyle={{ 
+                                            justifyContent: 'flex-start',
+                                            gap: 2
+                                        }}
+                                        showsVerticalScrollIndicator={false}
+                                        contentContainerStyle={{ paddingBottom: 20 }}
+                                        removeClippedSubviews={false}
+                                        getItemLayout={(data, index) => ({
+                                            length: 200, // Approximate height of each item
+                                            offset: 200 * Math.floor(index / (isTablet ? 5 : 3)),
+                                            index,
+                                        })}
+                                    />
+                                )}
+                            </View>
+                        )}
+
+                        {/* Assets Grid */}
+                        {assets && assets.length > 0 ? (
+                            <>
+                                <View className="px-4 mb-3">
+                                    <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
+                                        {text.media} ({assets.length})
+                                    </Text>
+                                </View>
+                                <FlatList
+                                    ref={flatListRef}
+                                    className="flex-1"
+                                    data={assets}
+                                    numColumns={numColumns}
+                                    renderItem={renderAssetItem}
+                                    keyExtractor={keyExtractor}
+                                    showsVerticalScrollIndicator={false}
+                                    removeClippedSubviews={true}
+                                    maxToRenderPerBatch={20}
+                                    windowSize={10}
+                                    initialNumToRender={20}
+                                    columnWrapperStyle={{ gap: gap }}
+                                    contentContainerStyle={{ gap: gap, paddingHorizontal: gap }}
+                                    scrollEventThrottle={16}
+                                    onScroll={(event) => {
+                                        setScrollOffset(event.nativeEvent.contentOffset.y);
+                                    }}
+                                    onScrollBeginDrag={() => setIsScrolling(true)}
+                                    onScrollEndDrag={() => setIsScrolling(false)}
+                                    onMomentumScrollBegin={() => setIsScrolling(true)}
+                                    onMomentumScrollEnd={() => setIsScrolling(false)}
+                                />
+                            </>
+                        ) : (
+                            <View className="flex-1 items-center justify-center px-4">
+                                <Feather name="image" size={48} color={theme === 'dark' ? '#cbd5e1' : '#64748b'} />
+                                <Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} text-center mt-4`}>
+                                    {text.noMediaInAlbum}
+                                </Text>
+                                <Text className={`${theme === 'dark' ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'} text-center text-sm mt-2`}>
+                                    {text.tapToAdd}
+                                </Text>
+                            </View>
+                        )}
+                    </Animated.View>
+                </GestureDetector>
+            )}
+        </>
     );
 };
 

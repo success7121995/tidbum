@@ -10,7 +10,7 @@ import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
 interface AlbumScreenProps {
@@ -40,7 +40,8 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 		handleEditAlbum, 
 		handleAddAssets, 
 		handleSelectAssets, 
-		handleAlbumDeleteActionSheet 
+		handleAlbumDeleteActionSheet,
+		refreshTrigger // Add refresh trigger
 	} = useAlbum();
 
 	const { language, theme } = useSetting();
@@ -77,6 +78,15 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 			fetchAlbum();
 		}, [fetchAlbum])
 	);
+
+	/**
+	 * Refetch album when refresh trigger changes (media library watcher updates)
+	 */
+	useEffect(() => {
+		if (refreshTrigger && refreshTrigger > 0) {
+			fetchAlbum();
+		}
+	}, [refreshTrigger, fetchAlbum]);
 
 	/**
 	 * Handle edit album

@@ -1,9 +1,10 @@
 import { deleteAlbum, insertAssets } from "@/lib/db";
 import { getLanguageText, Language } from "@/lib/lang";
+import { cleanupMediaLibraryWatcher, initializeMediaLibraryWatcher, setDatabaseChangeCallback } from "@/lib/media";
 import { Album } from "@/types/album";
 import { Asset } from "@/types/asset";
 import { router } from "expo-router";
-import { createContext, useCallback, useContext } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { ActionSheetIOS } from "react-native";
 import { useSetting } from "./SettingProvider";
 
@@ -19,6 +20,8 @@ interface AlbumContextType {
     handleSelectAssets?: (albumId: string, assets: Asset[], onSuccess?: () => void) => Promise<void>;
     handleAlbumDeleteActionSheet?: (albumId: string, onSuccess?: () => void) => void;
     handleAlbumDelete?: (albumId: string, onSuccess?: () => void) => Promise<void>;
+    refreshTrigger?: number; // Add refresh trigger
+    triggerRefresh?: () => void; // Add trigger function
 }
 
 // ============================================================================
@@ -31,6 +34,8 @@ const AlbumContext = createContext<AlbumContextType>({
     handleSelectAssets: async () => {},
     handleAlbumDeleteActionSheet: () => {},
     handleAlbumDelete: async () => {},
+    refreshTrigger: 0,
+    triggerRefresh: () => {},
 });
 
 // ============================================================================
@@ -50,6 +55,43 @@ export const useAlbum = () => {
 const AlbumProvider = ({ children }: { children: React.ReactNode }) => {
     const { language } = useSetting();
     const text = getLanguageText(language as Language);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    // Initialize media library watcher on app start
+    useEffect(() => {
+        const initWatcher = async () => {
+            try {
+                await initializeMediaLibraryWatcher();
+            } catch (error) {
+                console.error('Failed to initialize media library watcher:', error);
+            }
+        };
+
+        initWatcher();
+
+        // Cleanup watcher on unmount
+        return () => {
+            cleanupMediaLibraryWatcher();
+        };
+    }, []);
+
+    /**
+     * Trigger a refresh of all album data
+     * This will be called when the media library watcher makes changes
+     */
+    const triggerRefresh = useCallback(() => {
+        setRefreshTrigger(prev => prev + 1);
+    }, []);
+
+    // Set up database change callback
+    useEffect(() => {
+        setDatabaseChangeCallback(triggerRefresh);
+        
+        // Cleanup callback on unmount
+        return () => {
+            setDatabaseChangeCallback(null);
+        };
+    }, [triggerRefresh]);
 
     /**
      * Fetch albums - placeholder for future implementation
@@ -176,6 +218,8 @@ const AlbumProvider = ({ children }: { children: React.ReactNode }) => {
             handleSelectAssets,
             handleAlbumDeleteActionSheet,
             handleAlbumDelete,
+            refreshTrigger,
+            triggerRefresh,
         }}>
             {children}
         </AlbumContext.Provider>
