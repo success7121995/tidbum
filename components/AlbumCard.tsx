@@ -78,7 +78,7 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
 
     return (
         <Animated.View 
-            className="flex-1 bg-transparent"
+            className="bg-transparent"
             style={{
                 opacity: fadeAnim,
                 transform: [{ scale: scaleAnim }],
@@ -86,7 +86,7 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
         >
             {/* Photo Thumbnail - Clickable for navigation */}
             <TouchableOpacity 
-                className={`w-full aspect-square ${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} relative rounded-xl rounded-br-none overflow-hidden`}
+                className={`aspect-square ${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} relative rounded-xl rounded-br-none overflow-hidden`}
                 onPress={handleAlbumPress}
                 activeOpacity={0.8}
             >

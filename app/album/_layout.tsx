@@ -54,7 +54,6 @@ const AlbumLayout = () => {
 					headerTitle: '',
 				}}
 			/>
-			{/* <Stack.Screen name="[album_id]/[sub_album_id]" /> */}
 			<Stack.Screen
 				name="setting"
 				options={{

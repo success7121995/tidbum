@@ -94,6 +94,8 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
     const [visitedRows, setVisitedRows] = useState<Set<number>>(new Set());
     const [rowToggleStates, setRowToggleStates] = useState<Map<number, boolean>>(new Map());
     const [currentRow, setCurrentRow] = useState<number | null>(null);
+    const [scrollOffsetY, setScrollOffsetY] = useState(0);
+    const [scrollOffsetX, setScrollOffsetX] = useState(0);
 
     // ============================================================================
     // REFS
@@ -124,8 +126,8 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
      */
     const getItemAtPosition = useCallback((position: { x: number; y: number }) => {
         // Calculate which item is at this position
-        const adjustedX = position.x - gap;
-        const adjustedY = position.y - insets.top - 60; // Account for header height
+        const adjustedX = position.x - gap + scrollOffsetX;
+        const adjustedY = position.y - insets.top - 60 + scrollOffsetY; // Account for header height and scroll offset
         
         if (adjustedX < 0 || adjustedY < 0) return null;
 
@@ -136,14 +138,14 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
 
         const index = row * numColumns + column;
         return filteredAssets[index] || null;
-    }, [filteredAssets, itemSize, gap, numColumns, insets.top]);
+    }, [filteredAssets, itemSize, gap, numColumns, insets.top, scrollOffsetX, scrollOffsetY]);
 
     /**
      * Get row and column from position
      */
     const getRowAndColumnFromPosition = useCallback((position: { x: number; y: number }) => {
-        const adjustedX = position.x - gap;
-        const adjustedY = position.y - insets.top - 60; // Account for header height
+        const adjustedX = position.x - gap + scrollOffsetX;
+        const adjustedY = position.y - insets.top - 60 + scrollOffsetY; // Account for header height and scroll offset
         
         if (adjustedX < 0 || adjustedY < 0) return { row: -1, column: -1 };
 
@@ -151,7 +153,7 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
         const row = Math.floor(adjustedY / (itemSize + gap));
         
         return { row, column };
-    }, [itemSize, gap, insets.top]);
+    }, [itemSize, gap, insets.top, scrollOffsetX, scrollOffsetY]);
 
     /**
      * Get items in a row range with precise start/end columns
@@ -632,17 +634,28 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
             setRowToggleStates(new Map());
             setCurrentRow(null);
         },
-    }), [isScrolling, isSwipeSelecting, selectedAssetIds, toggledAssetIds, lastProcessedAssetId, currentRow, filteredAssets, numColumns, getItemAtPosition, processDeterministicSelection, hasHorizontalMovement, hasSufficientHorizontalMovement, hasVerticalMovement, hasSignificantVerticalMovement, gestureStartPosition, gestureLockedAsScroll]);
+    }), [isScrolling, isSwipeSelecting, selectedAssetIds, toggledAssetIds, lastProcessedAssetId, currentRow, filteredAssets, numColumns, getItemAtPosition, processDeterministicSelection, hasHorizontalMovement, hasSufficientHorizontalMovement, hasVerticalMovement, hasSignificantVerticalMovement, gestureStartPosition, gestureLockedAsScroll, scrollOffsetX, scrollOffsetY]);
 
     // ============================================================================
     // HANDLERS
     // ============================================================================
 
     /**
+     * Reset scroll offset
+     */
+    const resetScrollOffset = useCallback(() => {
+        setScrollOffsetX(0);
+        setScrollOffsetY(0);
+    }, []);
+
+    /**
      * Fetch assets and filter out existing ones
      */
     useEffect(() => {
         if (visible) {
+            // Reset scroll offset when modal becomes visible
+            resetScrollOffset();
+            
             (async () => {
                 setIsLoading(true);
                 try {
@@ -670,7 +683,7 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
                 }
             })();
         }
-    }, [visible]);
+    }, [visible, resetScrollOffset]);
 
     /**
      * Toggle asset selection
@@ -710,8 +723,18 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
             const selectedAssets = filteredAssets.filter(asset => selectedAssetIds.has(asset.id));
             onSelect(selectedAssets);
         }
+        resetScrollOffset();
         onClose();
-    }, [selectedAssetIds, filteredAssets, onSelect, onClose]);
+    }, [selectedAssetIds, filteredAssets, onSelect, onClose, resetScrollOffset]);
+
+    /**
+     * Handle scroll events to track offset
+     */
+    const handleScroll = useCallback((event: any) => {
+        const { contentOffset } = event.nativeEvent;
+        setScrollOffsetY(contentOffset.y);
+        setScrollOffsetX(contentOffset.x || 0);
+    }, []);
 
     // ============================================================================
     // RENDERERS
@@ -809,6 +832,7 @@ const MediaLibrary = ({ visible, onClose, onSelect, albumId }: MediaLibraryProps
                             columnWrapperStyle={{ gap: gap }}
                             contentContainerStyle={{ gap: gap, paddingHorizontal: gap }}
                             scrollEventThrottle={16}
+                            onScroll={handleScroll}
                             onScrollBeginDrag={() => setIsScrolling(true)}
                             onScrollEndDrag={() => setIsScrolling(false)}
                             onMomentumScrollBegin={() => setIsScrolling(true)}

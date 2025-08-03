@@ -94,6 +94,7 @@ export const getLanguageText = (language: Language) => {
                 //===============================================
                 // Library Interface
 				mediaLibrary: "媒體庫",
+				library: "媒體庫",
 				noMediaYet: "還沒有媒體",
 				addPhotosVideos: "新增照片和影片",
 				available: "可用",
@@ -242,6 +243,7 @@ export const getLanguageText = (language: Language) => {
                 //===============================================
                 // Library Interface
 				mediaLibrary: "媒体库",
+				library: "媒体库",
 				noMediaYet: "还没有媒体",
 				addPhotosVideos: "添加照片和视频",
 				available: "可用",
@@ -391,6 +393,7 @@ export const getLanguageText = (language: Language) => {
                 //===============================================
                 // Library Interface
 				mediaLibrary: "Media Library",
+				library: "Library",
 				noMediaYet: "No media yet",
 				addPhotosVideos: "Add photos and videos",
 				available: "available",

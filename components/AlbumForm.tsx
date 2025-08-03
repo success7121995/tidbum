@@ -71,9 +71,7 @@ const AlbumForm = ({
 						name="name"
 						render={({ field: { onChange, onBlur, value } }) => (
 							<TextInput
-								className={`px-4 py-3 rounded-xl border ${
-									errors.name ? 'border-red-500 bg-red-50' : `${theme === 'dark' ? 'border-dark-border bg-dark-card' : 'border-light-border bg-light-card'}`
-								} ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'}`}
+								className={`px-4 py-3 rounded-xl border ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'}`}
 								placeholder={text.enterAlbumName}
 								placeholderTextColor={theme === 'dark' ? '#94a3b8' : '#9ca3af'}
 								onChangeText={onChange}
@@ -83,11 +81,6 @@ const AlbumForm = ({
 							/>
 						)}
 					/>
-					{errors.name && (
-						<Text className="text-red-500 text-sm mt-1">
-							{errors.name.message}
-						</Text>
-					)}
 				</View>
 
 				{/* Description */}
