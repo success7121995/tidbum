@@ -12,6 +12,7 @@ import { useSetting } from "../constant/SettingProvider";
 import { getLanguageText, Language } from "../lib/lang";
 import { type Album } from "../types/album";
 import AlbumCard from "./AlbumCard";
+import AlbumsModal from "./AlbumsModal";
 import AssetGrid from "./AssetGrid";
 import AssetItem from "./AssetItem";
 import SelectionModeBottomBar from "./SelectionModeBottomBar";
@@ -43,10 +44,11 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const [assets, setAssets] = useState<Asset[]>(album.assets || []);
     const [subAlbums, setSubAlbums] = useState<Album[]>(album.subAlbums || []);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isAlbumsModalOpen, setIsAlbumsModalOpen] = useState(false);
     const [isScrolling, setIsScrolling] = useState(false);
     const [scrollOffsetX, setScrollOffsetX] = useState(0);
     const [scrollOffsetY, setScrollOffsetY] = useState(0);
-    
+
     // Selection state
     const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -84,14 +86,20 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         setSelectedAssetIds(new Set([assetId]));
         const selectedAsset = assets.find(asset => asset.id === assetId);
         if (selectedAsset) {
-            onSelectionChange?.([selectedAsset]);
+            // Use setTimeout to avoid calling onSelectionChange during render
+            setTimeout(() => {
+                onSelectionChange?.([selectedAsset]);
+            }, 0);
         }
     }, [assets, onSelectionChange]);
 
     const exitSelectionMode = useCallback(() => {
         setIsSelectionMode(false);
         setSelectedAssetIds(new Set());
-        onSelectionChange?.([]);
+        // Use setTimeout to avoid calling onSelectionChange during render
+        setTimeout(() => {
+            onSelectionChange?.([]);
+        }, 0);
     }, [onSelectionChange]);
 
     const toggleAssetSelection = useCallback((assetId: string) => {
@@ -106,7 +114,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             }
             
             const selectedAssetsArray = assets.filter(asset => newSet.has(asset.id));
-            onSelectionChange?.(selectedAssetsArray);
+            // Use setTimeout to avoid calling onSelectionChange during render
+            setTimeout(() => {
+                onSelectionChange?.(selectedAssetsArray);
+            }, 0);
             
             return newSet;
         });
@@ -115,7 +126,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const clearSelection = useCallback(() => {
         setSelectedAssetIds(new Set());
         setIsSelectionMode(false);
-        onSelectionChange?.([]);
+        // Use setTimeout to avoid calling onSelectionChange during render
+        setTimeout(() => {
+            onSelectionChange?.([]);
+        }, 0);
     }, [onSelectionChange]);
 
     // ============================================================================
@@ -156,20 +170,11 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     };
 
     /**
-     * Handle the sharing of selected assets
+     * Handle opening the albums modal
      */
-    const handleShareSelectedAssets = useCallback(() => {
-        // Placeholder for share functionality
-        console.log('Share selected assets:', Array.from(selectedAssetIds));
-    }, [selectedAssetIds]);
-
-    /**
-     * Handle the more options of selected assets
-     */
-    const handleMoreOptions = useCallback(() => {
-        // Placeholder for more options
-        console.log('More options for selected assets:', Array.from(selectedAssetIds));
-    }, [selectedAssetIds]);
+    const handleOpenAlbumsModal = useCallback(() => {
+        setIsAlbumsModalOpen(true);
+    }, []);
 
     /**
      * Handle the deletion of selected assets
@@ -199,7 +204,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
 
             setAssets(prevAssets => {
                 const updatedAssets = prevAssets.filter(asset => !deletedAssetIds.includes(asset.id));
-                onAssetsUpdate?.(updatedAssets);
+                // Use setTimeout to avoid calling onAssetsUpdate during render
+                setTimeout(() => {
+                    onAssetsUpdate?.(updatedAssets);
+                }, 0);
                 return updatedAssets;
             });
             
@@ -357,7 +365,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                                 const newSet = new Set(prev);
                                 newSet.add(assetId);
                                 const selectedAssetsArray = assets.filter(asset => newSet.has(asset.id));
-                                onSelectionChange?.(selectedAssetsArray);
+                                // Use setTimeout to avoid calling onSelectionChange during render
+                                setTimeout(() => {
+                                    onSelectionChange?.(selectedAssetsArray);
+                                }, 0);
                                 return newSet;
                             });
                         }
@@ -367,7 +378,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                                 const newSet = new Set(prev);
                                 newSet.delete(assetId);
                                 const selectedAssetsArray = assets.filter(asset => newSet.has(asset.id));
-                                onSelectionChange?.(selectedAssetsArray);
+                                // Use setTimeout to avoid calling onSelectionChange during render
+                                setTimeout(() => {
+                                    onSelectionChange?.(selectedAssetsArray);
+                                }, 0);
                                 return newSet;
                             });
                         }
@@ -467,6 +481,15 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             <AlbumCard
                                 album={subAlbum}
                                 onDelete={handleAlbumDelete}
+                                onPress={(album) => {
+                                    // Navigate to the album
+                                    try {
+                                        const { router } = require("expo-router");
+                                        router.push(`/album/${album.album_id}`);
+                                    } catch (error) {
+                                        console.warn('Navigation not available in this context');
+                                    }
+                                }}
                             />
 
                             {isDropTarget && (
@@ -491,6 +514,12 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         };
     }, [isTablet, draggedItem, dropTargetIndex, handleAlbumDelete]);
 
+    /**
+     * Render a sub-album item
+     * @param item - The sub-album to render
+     * @param index - The index of the sub-album
+     * @returns The rendered sub-album item
+     */
     const renderSubAlbumItem = useMemo(() => {
         return ({ item, index }: { item: Album; index: number }) => (
             <SubAlbumItem subAlbum={item} index={index} />
@@ -524,7 +553,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             
             if (hasChanges) {
                 const selectedAssetsArray = currentAssets.filter(asset => newSelectedIds.has(asset.id));
-                onSelectionChange?.(selectedAssetsArray);
+                // Use setTimeout to avoid calling onSelectionChange during render
+                setTimeout(() => {
+                    onSelectionChange?.(selectedAssetsArray);
+                }, 0);
                 
                 if (newSelectedIds.size === 0) {
                     exitSelectionMode();
@@ -533,11 +565,14 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         }
         
         setSubAlbums(album.subAlbums || []);
-    }, [album.album_id, album.assets, album.subAlbums, onSelectionChange, selectedAssetIds, exitSelectionMode]);
+    }, [album.album_id, album.assets, album.subAlbums, selectedAssetIds, exitSelectionMode]);
     
     useEffect(() => {
         if (needsParentUpdate.current && pendingAssetsUpdate.current) {
-            onAssetsUpdate?.(pendingAssetsUpdate.current);
+            // Use setTimeout to avoid calling onAssetsUpdate during render
+            setTimeout(() => {
+                onAssetsUpdate?.(pendingAssetsUpdate.current!);
+            }, 0);
             needsParentUpdate.current = false;
             pendingAssetsUpdate.current = null;
         }
@@ -589,7 +624,6 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             draggedItem={draggedItem}
                             dropTargetIndex={dropTargetIndex}
                             renderSubAlbumItem={renderSubAlbumItem}
-                            text={text}
                             theme={theme}
                         />
                         
@@ -612,11 +646,29 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                         />
                     </View>
 
+                    {/* Albums Modal */}
+                    {isAlbumsModalOpen && (
+                        <AlbumsModal 
+                            visible={isAlbumsModalOpen}
+                            onClose={() => setIsAlbumsModalOpen(false)}
+                            currentAlbumId={album.album_id!}
+                            currentAlbumName={album.name}
+                            selectedAssetIds={Array.from(selectedAssetIds)}
+                            onAssetsMoved={() => {
+                                // Refresh the assets list after moving
+                                if (album.album_id) {
+                                    // This will trigger a re-render with updated assets
+                                    onAssetsUpdate?.(assets.filter(asset => !selectedAssetIds.has(asset.id)));
+                                }
+                            }}
+                        />
+                    )}
+
                     {/* Selection Mode Bottom Bar */}
                     <SelectionModeBottomBar 
                         selectedAssets={selectedAssetIds}
                         onDelete={handleDeleteSelectedAssets}
-                        onMove={handleShareSelectedAssets}
+                        onMove={handleOpenAlbumsModal}
                         onCancel={exitSelectionMode}
                         text={text}
                         theme={theme}
@@ -633,7 +685,6 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             draggedItem={draggedItem}
                             dropTargetIndex={dropTargetIndex}
                             renderSubAlbumItem={renderSubAlbumItem}
-                            text={text}
                             theme={theme}
                         />
                         

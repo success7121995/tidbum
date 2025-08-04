@@ -63,6 +63,9 @@ const HomeIndex = () => {
             <AlbumCard
                 album={item}
                 onDelete={handleAlbumDelete}
+                onPress={(album) => {
+                    router.push(`/album/${album.album_id}`);
+                }}
             />
         </View>
     );

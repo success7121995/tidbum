@@ -1,6 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
 import React, { useRef } from "react";
 import { Dimensions, FlatList, Text, TouchableOpacity, View } from "react-native";
+import { useSetting } from "../constant/SettingProvider";
+import { getLanguageText, Language } from "../lib/lang";
 import { type Album } from "../types/album";
 
 // ============================================================================
@@ -20,7 +22,6 @@ interface SubAlbumsSectionProps {
     draggedItem: { type: 'asset' | 'album', index: number } | null;
     dropTargetIndex: number | null;
     renderSubAlbumItem: any;
-    text: any;
     theme: string;
 }
 
@@ -35,10 +36,11 @@ const SubAlbumsSection = ({
     draggedItem, 
     dropTargetIndex, 
     renderSubAlbumItem, 
-    text, 
     theme 
 }: SubAlbumsSectionProps) => {
     const albumListRef = useRef<FlatList>(null);
+    const { language } = useSetting();
+    const text = getLanguageText(language as Language);
 
     if (!subAlbums || subAlbums.length === 0) return null;
 

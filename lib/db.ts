@@ -276,6 +276,61 @@ export const getAlbumById = async (albumId: string): Promise<Album | null> => {
 };
 
 /**
+ * Get parent album by ID
+ */
+export const getParentAlbum = async (albumId: string): Promise<Album | null> => {
+    try {
+        const db = await getDb();
+        
+        // Get the current album to find its parent
+        const currentAlbumResult = await db.getAllAsync(
+            'SELECT parent_album_id FROM album WHERE album_id = ?',
+            [albumId]
+        );
+        
+        if (!currentAlbumResult || currentAlbumResult.length === 0) {
+            return null;
+        }
+        
+        const parentAlbumId = (currentAlbumResult[0] as any).parent_album_id;
+        
+        if (!parentAlbumId) {
+            return null; // This is a top-level album
+        }
+        
+        // Get the parent album details
+        const parentResult = await db.getAllAsync(`
+            SELECT 
+                a.*,
+                cover.uri as cover_uri,
+                cover.name as cover_name,
+                cover.media_type as cover_media_type,
+                (SELECT COUNT(*) FROM asset WHERE album_id = a.album_id) as total_assets
+            FROM album a
+            LEFT JOIN asset cover ON a.cover_asset_id = cover.asset_id
+            WHERE a.album_id = ?
+        `, [parentAlbumId]);
+        
+        if (parentResult && parentResult.length > 0) {
+            const parentRow = parentResult[0] as any;
+            return {
+                album_id: parentRow.album_id,
+                name: parentRow.name,
+                description: parentRow.description || '',
+                cover_asset_id: parentRow.cover_asset_id || undefined,
+                parent_album_id: parentRow.parent_album_id || undefined,
+                totalAssets: parentRow.total_assets || 0
+            };
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error getting parent album:', error);
+        return null;
+    }
+};
+
+/**
  * Get all top-level albums
  */
 export const getTopLevelAlbums = async (): Promise<(Album & { totalAssets: number })[]> => {
@@ -791,6 +846,43 @@ export const deleteSelectedAssets = async (assetIds: string[]): Promise<string[]
     }
 }
 
+/**
+ * Move assets from one album to another
+ * @param assetIds - Array of asset IDs to move
+ * @param targetAlbumId - The target album ID
+ * @returns Array of moved asset IDs
+ */
+export const moveAssetsToAlbum = async (assetIds: string[], targetAlbumId: string): Promise<string[]> => {
+    try {
+        const db = await getDb();
+        
+        // Start transaction for better performance
+        await db.execAsync('BEGIN TRANSACTION');
+        
+        // Update the album_id for all specified assets
+        const placeholders = assetIds.map(() => '?').join(',');
+        const result = await db.runAsync(
+            `UPDATE asset SET album_id = ?, updated_at = ? WHERE asset_id IN (${placeholders})`,
+            [targetAlbumId, new Date().toISOString(), ...assetIds]
+        );
+        
+        // Commit transaction
+        await db.execAsync('COMMIT');
+        
+        return assetIds;
+    } catch (error) {
+        // Rollback transaction on error
+        try {
+            const db = await getDb();
+            await db.execAsync('ROLLBACK');
+        } catch (rollbackError) {
+            console.error('Error rolling back transaction:', rollbackError);
+        }
+        
+        console.error('Error moving assets to album:', error);
+        throw error;
+    }
+};
 
 // ============================================================================
 // UTILITY FUNCTIONS

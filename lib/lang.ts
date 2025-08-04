@@ -48,6 +48,22 @@ export const getLanguageText = (language: Language) => {
 				addMedia: "新增媒體",
 				addNewFolder: "新增相簿",
 				deleteAlbum: "此相簿將被刪除，包含所有子相簿和媒體項目。",
+				
+                // Album Navigation & Moving
+				moveToAlbum: "移至相簿",
+				parentAlbum: "父相簿",
+				subAlbums: "子相簿",
+				topLevelAlbums: "頂層相簿",
+				noSubAlbums: "沒有子相簿",
+				noSubAlbumsDescription: "此相簿沒有任何子相簿。您只能將資產移至父相簿。",
+				currentAlbum: "當前",
+				success: "成功",
+				movedTo: "已移至",
+				ok: "確定",
+				moveAssetsError: "移動資產失敗。請重試。",
+				confirm: "確認",
+				loading: "載入中...",
+				movingTo: "移至",
 
                 //===============================================
                 // MEDIA & ASSETS
@@ -197,6 +213,22 @@ export const getLanguageText = (language: Language) => {
 				addMedia: "添加媒体",
 				addNewFolder: "添加新相簿",
 				deleteAlbum: "此相簿將被刪除，包含所有子相簿和媒體項目。",
+				
+                // Album Navigation & Moving
+				moveToAlbum: "移至相簿",
+				parentAlbum: "父相簿",
+				subAlbums: "子相簿",
+				topLevelAlbums: "顶层相簿",
+				noSubAlbums: "沒有子相簿",
+				noSubAlbumsDescription: "此相簿沒有任何子相簿。您只能將資產移至父相簿。",
+				currentAlbum: "当前",
+				success: "成功",
+				movedTo: "已移至",
+				ok: "確定",
+				moveAssetsError: "移動資產失敗。請重試。",
+				confirm: "確認",
+				loading: "載入中...",
+				movingTo: "移至",
 
                 //===============================================
                 // MEDIA & ASSETS
@@ -348,6 +380,22 @@ export const getLanguageText = (language: Language) => {
 				addNewFolder: "Add a new album",
 				deleteAlbum: "This album will be deleted, including all sub-albums and media items.",
 				
+                // Album Navigation & Moving
+				moveToAlbum: "Move to Album",
+				parentAlbum: "Parent Album",
+				subAlbums: "Sub-Albums",
+				topLevelAlbums: "Top-Level Albums",
+				noSubAlbums: "No Sub-Albums",
+				noSubAlbumsDescription: "This album doesn't have any sub-albums. You can only move assets to the parent album.",
+				currentAlbum: "Current",
+				success: "Success",
+				movedTo: "moved to",
+				ok: "OK",
+				moveAssetsError: "Failed to move assets. Please try again.",
+				confirm: "Confirm",
+				loading: "Loading...",
+				movingTo: "Moving to",
+
                 //===============================================
                 // MEDIA & ASSETS
                 //===============================================

@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from "expo-router";
 import { ActionSheetIOS, Animated, Image, Text, TouchableOpacity, View } from "react-native";
 import { useSetting } from "../constant/SettingProvider";
 import { deleteAlbum } from "../lib/db";
@@ -9,9 +8,10 @@ import { Album } from "../types/album";
 interface AlbumCardProps {
     album: Album;
     onDelete?: (albumId: string) => void;
+    onPress?: (album: Album) => void;
 }
 
-const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
+const AlbumCard = ({ album, onDelete, onPress }: AlbumCardProps) => {
     // ============================================================================
     // STATE
     // ============================================================================
@@ -67,8 +67,17 @@ const AlbumCard = ({ album, onDelete }: AlbumCardProps) => {
      * Handle album press
      */
     const handleAlbumPress = () => {
-        if (album.album_id) {
-            router.push(`/album/${album.album_id}`);
+        if (onPress) {
+            onPress(album);
+        } else if (album.album_id) {
+            // Fallback to router if no onPress callback is provided
+            // This will only work when the component is used outside of modals
+            try {
+                const { router } = require("expo-router");
+                router.push(`/album/${album.album_id}`);
+            } catch (error) {
+                console.warn('Navigation not available in this context');
+            }
         }
     };
 
