@@ -1,4 +1,4 @@
-import { deleteSelectedAssets as deleteSelectedAssetsFromDb } from "@/lib/db";
+import { deleteSelectedAssets as deleteSelectedAssetsFromDb, getAlbumById } from "@/lib/db";
 import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,6 +23,7 @@ interface AlbumProps {
     onAssetPress?: (asset: Asset) => void;
     onSelectionChange?: (selectedAssets: Asset[]) => void;
     onAssetsUpdate?: (updatedAssets: Asset[]) => void;
+    onAlbumUpdate?: (updatedAlbum: Album) => void;
 }
 
 // ============================================================================
@@ -37,12 +38,13 @@ const itemSize = (screenWidth - (gap * (numColumns + 1))) / numColumns;
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
-const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdate }: AlbumProps) => {
+const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdate, onAlbumUpdate }: AlbumProps) => {
     // ============================================================================
     // STATE
     // ============================================================================
     const [assets, setAssets] = useState<Asset[]>(album.assets || []);
     const [subAlbums, setSubAlbums] = useState<Album[]>(album.subAlbums || []);
+    const [currentAlbum, setCurrentAlbum] = useState<Album>(album);
     const [isExpanded, setIsExpanded] = useState(false);
     const [isAlbumsModalOpen, setIsAlbumsModalOpen] = useState(false);
     const [isScrolling, setIsScrolling] = useState(false);
@@ -607,6 +609,29 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     }, []);
 
     // ============================================================================
+    // HELPER FUNCTIONS
+    // ============================================================================
+
+    // Refresh album data
+    const refreshAlbumData = useCallback(async () => {
+        if (currentAlbum.album_id) {
+            try {
+                console.log('Refreshing album data for:', currentAlbum.album_id);
+                const updatedAlbum = await getAlbumById(currentAlbum.album_id);
+                if (updatedAlbum) {
+                    console.log('Updated album data:', updatedAlbum);
+                    setCurrentAlbum(updatedAlbum);
+                    setAssets(updatedAlbum.assets || []);
+                    setSubAlbums(updatedAlbum.subAlbums || []);
+                    onAlbumUpdate?.(updatedAlbum);
+                }
+            } catch (error) {
+                console.error('Error refreshing album data:', error);
+            }
+        }
+    }, [currentAlbum.album_id, onAlbumUpdate]);
+
+    // ============================================================================
     // RENDER
     // ============================================================================
     return (
@@ -651,14 +676,26 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                         <AlbumsModal 
                             visible={isAlbumsModalOpen}
                             onClose={() => setIsAlbumsModalOpen(false)}
-                            currentAlbumId={album.album_id!}
-                            currentAlbumName={album.name}
+                            currentAlbumId={currentAlbum.album_id!}
+                            currentAlbumName={currentAlbum.name}
                             selectedAssetIds={Array.from(selectedAssetIds)}
-                            onAssetsMoved={() => {
-                                // Refresh the assets list after moving
-                                if (album.album_id) {
-                                    // This will trigger a re-render with updated assets
-                                    onAssetsUpdate?.(assets.filter(asset => !selectedAssetIds.has(asset.id)));
+                            onAssetsMoved={async () => {
+                                console.log('Assets moved, refreshing album data...');
+                                
+                                // Refresh the album data immediately to update totalAssets count
+                                await refreshAlbumData();
+                                
+                                // Exit selection mode and clear selected assets
+                                exitSelectionMode();
+                                
+                                // Force a small delay to ensure state updates are processed
+                                await new Promise(resolve => setTimeout(resolve, 50));
+                                
+                                // Also update the assets list locally
+                                if (currentAlbum.album_id) {
+                                    const updatedAssets = assets.filter(asset => !selectedAssetIds.has(asset.id));
+                                    setAssets(updatedAssets);
+                                    onAssetsUpdate?.(updatedAssets);
                                 }
                             }}
                         />

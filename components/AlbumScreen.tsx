@@ -67,6 +67,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	useFocusEffect(
 		useCallback(() => {
 			// Always fetch to get latest data, but only show loading if we don't have data
+			console.log('AlbumScreen focused, refreshing data...');
 			fetchAlbum();
 		}, [fetchAlbum])
 	);
@@ -163,18 +164,36 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	}, []);
 
 	/**
-	 * Handle assets update from Album component
-	 * @param updatedAssets - Updated array of assets
+	 * Handle assets update
 	 */
-	const handleAssetsUpdate = useCallback((updatedAssets: Asset[]) => {
-		setAlbum(prevAlbum => {
-			if (!prevAlbum) return prevAlbum;
-			return {
-				...prevAlbum,
+	const handleAssetsUpdate = async (updatedAssets: Asset[]) => {
+		if (album) {
+			// Update the assets list
+			setAlbum({
+				...album,
 				assets: updatedAssets
-			};
-		});
-	}, []); // Empty dependency array to prevent re-creation
+			});
+			
+			// Also refresh the album data to get updated totalAssets count
+			try {
+				const refreshedAlbum = await getAlbumById(albumId);
+				if (refreshedAlbum) {
+					setAlbum(refreshedAlbum);
+				}
+			} catch (error) {
+				console.error('Error refreshing album after assets update:', error);
+			}
+		}
+	};
+
+	/**
+	 * Handle album update
+	 */
+	const handleAlbumUpdate = (updatedAlbum: Album) => {
+		console.log('Album updated in AlbumScreen:', updatedAlbum);
+		// Update the album state with the latest data including totalAssets
+		setAlbum(updatedAlbum);
+	};
 
 	/**
 	 * Handle delete
@@ -301,6 +320,7 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 				onAssetPress={handleAssetPress}
 				onSelectionChange={handleSelectionChange}
 				onAssetsUpdate={handleAssetsUpdate}
+				onAlbumUpdate={handleAlbumUpdate}
 			/>
 
 			{/* Media library */}

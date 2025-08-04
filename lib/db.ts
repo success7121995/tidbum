@@ -175,25 +175,28 @@ export const createAlbum = async (album: Album): Promise<string> => {
 
 /**
  * Get album by ID with assets and sub-albums
+ * @param albumId - The album ID to get
+ * @returns The album or null if not found
  */
 export const getAlbumById = async (albumId: string): Promise<Album | null> => {
     try {
         const db = await getDb();
         
-        // Get the album with cover asset
+        // Get the album with cover asset and total assets count
         const albumResult = await db.getAllAsync(`
             SELECT 
                 a.*,
                 cover.uri as cover_uri,
                 cover.name as cover_name,
-                cover.media_type as cover_media_type
+                cover.media_type as cover_media_type,
+                (SELECT COUNT(*) FROM asset WHERE album_id = a.album_id) as total_assets
             FROM album a
             LEFT JOIN asset cover ON a.cover_asset_id = cover.asset_id
             WHERE a.album_id = ?
         `, [albumId]);
         
         if (albumResult && Array.isArray(albumResult) && albumResult.length > 0) {
-            const albumRow = albumResult[0] as Album;
+            const albumRow = albumResult[0] as any;
 
             // Get all assets in this album
             const assetsResult = await db.getAllAsync(`
@@ -244,7 +247,6 @@ export const getAlbumById = async (albumId: string): Promise<Album | null> => {
                 ORDER BY a.order_index ASC
             `, [albumId]);
 
-
             // Process sub-albums to include totalAssets
             const processedSubAlbums = subAlbumsResult.map((subAlbumRow: any) => ({
                 album_id: subAlbumRow.album_id,
@@ -261,6 +263,7 @@ export const getAlbumById = async (albumId: string): Promise<Album | null> => {
                 description: albumRow.description || '',
                 cover_asset_id: albumRow.cover_asset_id || undefined,
                 parent_album_id: albumRow.parent_album_id || undefined,
+                totalAssets: albumRow.total_assets || 0,
                 assets: assetsResult as any[] || [],
                 subAlbums: processedSubAlbums || []
             };
@@ -277,6 +280,8 @@ export const getAlbumById = async (albumId: string): Promise<Album | null> => {
 
 /**
  * Get parent album by ID
+ * @param albumId - The album ID to get the parent of
+ * @returns The parent album or null if no parent exists
  */
 export const getParentAlbum = async (albumId: string): Promise<Album | null> => {
     try {
@@ -852,16 +857,26 @@ export const deleteSelectedAssets = async (assetIds: string[]): Promise<string[]
  * @param targetAlbumId - The target album ID
  * @returns Array of moved asset IDs
  */
-export const moveAssetsToAlbum = async (assetIds: string[], targetAlbumId: string): Promise<string[]> => {
+export const moveAssetsToAlbum = async (assetIds: string[], targetAlbumId: string): Promise<{ movedAssetIds: string[], affectedAlbumIds: string[] }> => {
     try {
         const db = await getDb();
         
         // Start transaction for better performance
         await db.execAsync('BEGIN TRANSACTION');
         
+        // Get the source album IDs for the assets being moved
+        const sourceAlbumsResult = await db.getAllAsync(
+            `SELECT DISTINCT album_id FROM asset WHERE asset_id IN (${assetIds.map(() => '?').join(',')})`,
+            assetIds
+        );
+        
+        const sourceAlbumIds = sourceAlbumsResult
+            .map((row: any) => row.album_id)
+            .filter((albumId: string) => albumId !== targetAlbumId && albumId !== null); // Exclude target album and null values
+        
         // Update the album_id for all specified assets
         const placeholders = assetIds.map(() => '?').join(',');
-        const result = await db.runAsync(
+        await db.runAsync(
             `UPDATE asset SET album_id = ?, updated_at = ? WHERE asset_id IN (${placeholders})`,
             [targetAlbumId, new Date().toISOString(), ...assetIds]
         );
@@ -869,7 +884,18 @@ export const moveAssetsToAlbum = async (assetIds: string[], targetAlbumId: strin
         // Commit transaction
         await db.execAsync('COMMIT');
         
-        return assetIds;
+        // Force a small delay to ensure the transaction is fully committed
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Return both the moved asset IDs and the affected album IDs (source + target)
+        const affectedAlbumIds = [...new Set([...sourceAlbumIds, targetAlbumId])];
+        
+        console.log('Assets moved successfully. Affected albums:', affectedAlbumIds);
+        
+        return {
+            movedAssetIds: assetIds,
+            affectedAlbumIds
+        };
     } catch (error) {
         // Rollback transaction on error
         try {

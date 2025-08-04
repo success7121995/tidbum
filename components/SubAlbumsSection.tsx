@@ -31,8 +31,7 @@ interface SubAlbumsSectionProps {
 const SubAlbumsSection = ({ 
     subAlbums, 
     isExpanded, 
-    onToggleExpand, 
-    onAlbumDelete, 
+    onToggleExpand,
     draggedItem, 
     dropTargetIndex, 
     renderSubAlbumItem, 

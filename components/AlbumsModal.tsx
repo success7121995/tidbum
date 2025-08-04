@@ -1,9 +1,10 @@
-import { getAlbumById, getParentAlbum, getTopLevelAlbums, moveAssetsToAlbum } from "@/lib/db";
+import { moveAssetsToAlbum } from "@/lib/db";
 import { Album } from "@/types/album";
 import Feather from '@expo/vector-icons/Feather';
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect } from "react";
 import { ActivityIndicator, Alert, Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDirectoryNavigation } from "../constant/DirectoryNavigationProvider";
 import { useSetting } from "../constant/SettingProvider";
 import { getLanguageText, Language } from "../lib/lang";
 import AlbumDirectory from "./AlbumDirectory";
@@ -16,118 +17,6 @@ interface AlbumsModalProps {
     selectedAssetIds: string[];
     onAssetsMoved?: () => void;
 }
-
-// ============================================================================
-// CUSTOM HOOKS
-// ============================================================================
-
-/**
- * Hook for managing directory navigation within the modal
- */
-const useDirectoryNavigation = (initialAlbumId: string, selectedAssetIds: string[], visible: boolean) => {
-    const [currentDirectoryId, setCurrentDirectoryId] = useState(initialAlbumId);
-    const [currentDirectory, setCurrentDirectory] = useState<Album | null>(null);
-    const [parentAlbum, setParentAlbum] = useState<Album | null>(null);
-    const [subAlbums, setSubAlbums] = useState<Album[]>([]);
-    const [topLevelAlbums, setTopLevelAlbums] = useState<Album[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [selectedTargetAlbum, setSelectedTargetAlbum] = useState<Album | null>(null);
-
-    const loadDirectoryData = useCallback(async (albumId: string) => {
-        setIsLoading(true);
-        try {
-            // Load current directory with sub-albums
-            const album = await getAlbumById(albumId);
-            setCurrentDirectory(album);
-            setSubAlbums(album?.subAlbums || []);
-
-            // Load parent album if exists
-            const parent = await getParentAlbum(albumId);
-            setParentAlbum(parent);
-
-            // If no parent album, load top-level albums
-            if (!parent) {
-                const topAlbums = await getTopLevelAlbums();
-                setTopLevelAlbums(topAlbums);
-            } else {
-                setTopLevelAlbums([]);
-            }
-        } catch (error) {
-            console.error('Error loading directory data:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    // Navigate to a new directory
-    const navigateToDirectory = useCallback(async (albumId: string) => {
-        setCurrentDirectoryId(albumId);
-        // Automatically select the new directory as target
-        const album = await getAlbumById(albumId);
-        if (album) {
-            setSelectedTargetAlbum(album);
-        }
-    }, []);
-
-    // Select a target album for moving assets
-    const selectTargetAlbum = useCallback((album: Album) => {
-        setSelectedTargetAlbum(album);
-    }, []);
-
-    // Navigate to parent directory
-    const navigateToParent = useCallback(async () => {
-        if (parentAlbum) {
-            await navigateToDirectory(parentAlbum.album_id!);
-        }
-    }, [parentAlbum, navigateToDirectory]);
-
-    // Check if confirm button should be enabled
-    const isConfirmEnabled = useCallback(() => {
-        
-        if (!selectedTargetAlbum || selectedAssetIds.length === 0) {
-            return false;
-        }
-        // Enable if selected album is different from the original album (where assets are coming from)
-        return selectedTargetAlbum.album_id !== initialAlbumId;
-    }, [selectedTargetAlbum, initialAlbumId, selectedAssetIds]);
-
-    // Load data when directory changes
-    useEffect(() => {
-        if (currentDirectoryId) {
-            loadDirectoryData(currentDirectoryId);
-        }
-    }, [currentDirectoryId, loadDirectoryData]);
-
-    // Reset to initial album when modal opens
-    useEffect(() => {
-        if (visible) {
-            setCurrentDirectoryId(initialAlbumId);
-            // Automatically select the initial album as target
-            const loadInitialAlbum = async () => {
-                const album = await getAlbumById(initialAlbumId);
-                if (album) {
-                    setSelectedTargetAlbum(album);
-                }
-            };
-            loadInitialAlbum();
-        }
-    }, [initialAlbumId, visible]);
-
-    return {
-        currentDirectoryId,
-        currentDirectory,
-        parentAlbum,
-        subAlbums,
-        topLevelAlbums,
-        isLoading,
-        selectedTargetAlbum,
-        navigateToDirectory,
-        selectTargetAlbum,
-        navigateToParent,
-        isConfirmEnabled: isConfirmEnabled(),
-        reloadData: () => loadDirectoryData(currentDirectoryId)
-    };
-};
 
 // ============================================================================
 // MAIN COMPONENT
@@ -157,8 +46,21 @@ const AlbumsModal = ({
         selectTargetAlbum,
         navigateToParent,
         isConfirmEnabled,
+        resetToInitialAlbum,
+        refreshAlbumData,
         reloadData
-    } = useDirectoryNavigation(currentAlbumId, selectedAssetIds, visible);
+    } = useDirectoryNavigation();
+
+    // ============================================================================
+    // EFFECTS
+    // ============================================================================
+
+    // Reset to initial album when modal opens
+    useEffect(() => {
+        if (visible) {
+            resetToInitialAlbum(currentAlbumId);
+        }
+    }, [currentAlbumId, visible, resetToInitialAlbum]);
 
     // ============================================================================
     // HANDLERS
@@ -193,12 +95,21 @@ const AlbumsModal = ({
      * Handles the confirmation of moving assets.
      */
     const handleConfirmMove = useCallback(async () => {
-        if (!selectedTargetAlbum || !isConfirmEnabled) {
+        if (!selectedTargetAlbum || !isConfirmEnabled(currentAlbumId, selectedAssetIds)) {
             return;
         }
 
         try {
-            await moveAssetsToAlbum(selectedAssetIds, selectedTargetAlbum.album_id!);
+            const { affectedAlbumIds } = await moveAssetsToAlbum(selectedAssetIds, selectedTargetAlbum.album_id!);
+            
+            // Force immediate refresh of directory navigation data
+            await refreshAlbumData(affectedAlbumIds);
+            
+            // Force a small delay to ensure database is updated
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Call onAssetsMoved callback to update parent components immediately
+            onAssetsMoved?.();
             
             Alert.alert(
                 text.success,
@@ -207,7 +118,6 @@ const AlbumsModal = ({
                     {
                         text: text.ok,
                         onPress: () => {
-                            onAssetsMoved?.();
                             onClose();
                         }
                     }
@@ -221,14 +131,18 @@ const AlbumsModal = ({
                 [{ text: text.ok }]
             );
         }
-    }, [selectedTargetAlbum, selectedAssetIds, isConfirmEnabled, text, onAssetsMoved, onClose]);
+    }, [selectedTargetAlbum, selectedAssetIds, currentAlbumId, isConfirmEnabled, text, onAssetsMoved, onClose, refreshAlbumData]);
 
     /**
      * Handles the press event for the overlay.
      */
     const handleOverlayPress = useCallback(() => {
+        // Refresh data before closing to ensure latest counts are shown
+        if (currentDirectoryId) {
+            reloadData();
+        }
         onClose();
-    }, [onClose]);
+    }, [onClose, currentDirectoryId, reloadData]);
 
     // ============================================================================
     // RENDER
@@ -253,7 +167,13 @@ const AlbumsModal = ({
                         </Text>
                     </View>
                     <TouchableOpacity 
-                        onPress={onClose}
+                        onPress={() => {
+                            // Refresh data before closing to ensure latest counts are shown
+                            if (currentDirectoryId) {
+                                reloadData();
+                            }
+                            onClose();
+                        }}
                         className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 items-center justify-center"
                     >
                         <Feather name="x" size={20} color={theme === 'dark' ? '#94A3B8' : '#64748B'} />
@@ -298,7 +218,13 @@ const AlbumsModal = ({
                     
                     <View className="flex-row space-x-3">
                         <TouchableOpacity
-                            onPress={onClose}
+                            onPress={() => {
+                                // Refresh data before closing to ensure latest counts are shown
+                                if (currentDirectoryId) {
+                                    reloadData();
+                                }
+                                onClose();
+                            }}
                             className={`flex-1 py-3 rounded-xl border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}
                         >
                             <Text className={`text-center font-medium ${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'}`}>
@@ -308,10 +234,10 @@ const AlbumsModal = ({
                         
                         <TouchableOpacity
                             onPress={handleConfirmMove}
-                            disabled={!isConfirmEnabled}
-                            className={`flex-1 py-3 rounded-xl ${isConfirmEnabled ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                            disabled={!isConfirmEnabled(currentAlbumId, selectedAssetIds)}
+                            className={`flex-1 py-3 rounded-xl ${isConfirmEnabled(currentAlbumId, selectedAssetIds) ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                         >
-                            <Text className={`text-center font-medium ${isConfirmEnabled ? 'text-white' : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                            <Text className={`text-center font-medium ${isConfirmEnabled(currentAlbumId, selectedAssetIds) ? 'text-white' : theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                                 {text.confirm}
                             </Text>
                         </TouchableOpacity>
