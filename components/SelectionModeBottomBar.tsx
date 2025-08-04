@@ -7,10 +7,9 @@ import { Text, TouchableOpacity, View } from "react-native";
 // ============================================================================
 interface SelectionModeBottomBarProps {
     selectedAssets: Set<string>;
-    onDelete: () => void;
-    onShare: () => void;
-    onCancel: () => void;
-    onMore: () => void;
+    onDelete?: () => void;
+    onMove?: () => void;
+    onCancel?: () => void;
     text: any;
     theme: string;
 }
@@ -21,18 +20,21 @@ interface SelectionModeBottomBarProps {
 const SelectionModeBottomBar = ({ 
     selectedAssets, 
     onDelete, 
-    onShare, 
+    onMove, 
     onCancel, 
-    onMore, 
     text, 
     theme 
 }: SelectionModeBottomBarProps) => (
     <View className={`mb-3 px-4 py-3 ${theme === 'dark' ? 'bg-gray-900' : 'bg-black'} border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-800'}`}>
         <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-3">
-                <TouchableOpacity onPress={onShare} className="p-2">
-                    <Feather name="share-2" size={24} color="white" />
+
+                {/* Move Button */}
+                <TouchableOpacity onPress={onMove} className="p-2">
+                    <Feather name="move" size={24} color="white" />
                 </TouchableOpacity>
+
+                {/* Delete Button */}
                 <TouchableOpacity onPress={onDelete} className="p-2">
                     <Feather name="trash-2" size={24} color="white" />
                 </TouchableOpacity>

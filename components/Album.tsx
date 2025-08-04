@@ -3,15 +3,19 @@ import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActionSheetIOS, Dimensions, FlatList, GestureResponderEvent, Image, PanResponder, PanResponderGestureState, Text, TouchableOpacity, View } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { runOnJS, useSharedValue } from "react-native-reanimated";
+import { ActionSheetIOS, Dimensions, View } from "react-native";
+import { GestureDetector } from "react-native-gesture-handler";
+import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useGesture } from "../constant/GestureProvider";
 import { useSetting } from "../constant/SettingProvider";
 import { getLanguageText, Language } from "../lib/lang";
 import { type Album } from "../types/album";
 import AlbumCard from "./AlbumCard";
 import AssetGrid from "./AssetGrid";
+import AssetItem from "./AssetItem";
+import SelectionModeBottomBar from "./SelectionModeBottomBar";
+import SubAlbumsSection from "./SubAlbumsSection";
 
 interface AlbumProps {
     album: Album;
@@ -30,197 +34,6 @@ const gap = 2;
 const itemSize = (screenWidth - (gap * (numColumns + 1))) / numColumns;
 
 // ============================================================================
-// ASSET ITEM COMPONENT
-// ============================================================================
-const AssetItem = React.memo(({ 
-    asset, 
-    isSelected, 
-    isCurrentlyDragged, 
-    isDropTarget, 
-    onPress, 
-    onLongPress,
-    isScrolling,
-    isHovered
-}: { 
-    asset: Asset; 
-    isSelected: boolean; 
-    isCurrentlyDragged: boolean; 
-    isDropTarget: boolean; 
-    onPress: () => void; 
-    onLongPress: () => void;
-    isScrolling: boolean;
-    isHovered: boolean;
-}) => {
-    const itemStyle = {
-        width: itemSize,
-        height: itemSize,
-        position: 'relative' as const,
-        opacity: isCurrentlyDragged ? 0.3 : 1,
-        borderWidth: isDropTarget ? 2 : 0,
-        borderColor: isDropTarget ? '#3B82F6' : 'transparent',
-        borderRadius: isDropTarget ? 8 : 0,
-        backgroundColor: isDropTarget ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-    };
-
-    return (
-        <Animated.View>
-            <TouchableOpacity
-                style={itemStyle}
-                onPress={isScrolling ? undefined : onPress}
-                onLongPress={isScrolling ? undefined : onLongPress}
-                activeOpacity={isScrolling ? 1 : 0.7}
-                delayPressIn={150}
-                delayLongPress={650}
-                disabled={isScrolling}
-            >
-                <Image 
-                    source={{ uri: asset.uri }} 
-                    className="w-full h-full object-cover"
-                />
-                
-                {isHovered && (
-                    <View className="absolute inset-0 bg-opacity-30" />
-                )}
-                
-                {asset.mediaType === 'video' && (
-                    <View className="absolute top-1 right-1">
-                        <View className="bg-black bg-opacity-50 rounded-full p-1">
-                            <Feather name="play" size={12} color="white" />
-                        </View>
-                    </View>
-                )}
-
-                {isDropTarget && (
-                    <View className="absolute inset-0 bg-opacity-30 rounded-lg items-center justify-center">
-                        <View className="bg-blue-500 rounded-full p-2">
-                            <Feather name="arrow-down" size={16} color="white" />
-                        </View>
-                    </View>
-                )}
-
-                {isSelected && (
-                    <View className="absolute top-1 right-1">
-                        <View className="bg-blue-500 rounded-full w-6 h-6 items-center justify-center border-2 border-white shadow-sm">
-                            <Feather name="check" size={12} color="white" />
-                        </View>
-                    </View>
-                )}
-            </TouchableOpacity>
-        </Animated.View>
-    );
-});
-
-
-
-// ============================================================================
-// SELECTION MODE BOTTOM BAR COMPONENT
-// ============================================================================
-const SelectionModeBottomBar = ({ 
-    selectedAssets, 
-    onDelete, 
-    onShare, 
-    onCancel, 
-    onMore, 
-    text, 
-    theme 
-}: {
-    selectedAssets: Set<string>;
-    onDelete: () => void;
-    onShare: () => void;
-    onCancel: () => void;
-    onMore: () => void;
-    text: any;
-    theme: string;
-}) => (
-    <View className={`mb-3 px-4 py-3 ${theme === 'dark' ? 'bg-gray-900' : 'bg-black'} border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-800'}`}>
-        <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-3">
-                <TouchableOpacity onPress={onShare} className="p-2">
-                    <Feather name="share-2" size={24} color="white" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onDelete} className="p-2">
-                    <Feather name="trash-2" size={24} color="white" />
-                </TouchableOpacity>
-            </View>
-            
-            <Text className="text-white font-medium text-base">
-                {selectedAssets.size} {selectedAssets.size === 1 ? text.photo : text.photos} {text.selected}
-            </Text>
-            
-            {/* Cancel Button */}
-            <TouchableOpacity onPress={onCancel} className="p-2 px-8 bg-blue-500 rounded-full">
-                <Text className="text-white font-medium text-base">
-                    {text.cancel}
-                </Text>
-            </TouchableOpacity>
-        </View>
-    </View>
-);
-
-// ============================================================================
-// SUB-ALBUMS SECTION COMPONENT
-// ============================================================================
-const SubAlbumsSection = ({ 
-    subAlbums, 
-    isExpanded, 
-    onToggleExpand, 
-    onAlbumDelete, 
-    draggedItem, 
-    dropTargetIndex, 
-    renderSubAlbumItem, 
-    text, 
-    theme 
-}: {
-    subAlbums: Album[];
-    isExpanded: boolean;
-    onToggleExpand: () => void;
-    onAlbumDelete: (albumId: string) => void;
-    draggedItem: { type: 'asset' | 'album', index: number } | null;
-    dropTargetIndex: number | null;
-    renderSubAlbumItem: any;
-    text: any;
-    theme: string;
-}) => {
-    const albumListRef = useRef<FlatList>(null);
-
-    if (!subAlbums || subAlbums.length === 0) return null;
-
-    return (
-        <View className="px-4 mb-4">
-            <View className="flex-row items-center justify-between mb-3">
-                <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
-                    {text.folders} ({subAlbums.length}) 
-                </Text>
-                <TouchableOpacity onPress={onToggleExpand} className="p-2">
-                    <Feather 
-                        name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-                        size={20} 
-                        color={theme === 'dark' ? '#cbd5e1' : '#64748b'} 
-                    />
-                </TouchableOpacity>
-            </View>
-            {isExpanded && (
-                <FlatList
-                    ref={albumListRef}
-                    data={subAlbums}
-                    renderItem={renderSubAlbumItem}
-                    keyExtractor={(item) => item.album_id || ''}
-                    horizontal={true}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingRight: 20 }}
-                    removeClippedSubviews={false}
-                    getItemLayout={(data, index) => ({
-                        length: isTablet ? 160 : 140,
-                        offset: (isTablet ? 160 : 140) * index,
-                        index,
-                    })}
-                />
-            )}
-        </View>
-    );
-};
-
-// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdate }: AlbumProps) => {
@@ -229,24 +42,18 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     // ============================================================================
     const [assets, setAssets] = useState<Asset[]>(album.assets || []);
     const [subAlbums, setSubAlbums] = useState<Album[]>(album.subAlbums || []);
-    const [draggedItem, setDraggedItem] = useState<{ type: 'asset' | 'album', index: number } | null>(null);
-    const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
-    const [isSelectionMode, setIsSelectionMode] = useState(false);
-    const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
     const [isExpanded, setIsExpanded] = useState(false);
     const [isScrolling, setIsScrolling] = useState(false);
-    const [isSwipeSelecting, setIsSwipeSelecting] = useState(false);
-    const [currentHoverAssetId, setCurrentHoverAssetId] = useState<string | null>(null);
-    const [initialAssetIndex, setInitialAssetIndex] = useState<number | null>(null);
-    const [isDeselectGesture, setIsDeselectGesture] = useState<boolean | null>(null);
-    const [lastProcessedIndex, setLastProcessedIndex] = useState<number | null>(null);
-    const [gestureStartPosition, setGestureStartPosition] = useState<{ x: number; y: number } | null>(null);
-    const [hasHorizontalMovement, setHasHorizontalMovement] = useState(false);
-    const [hasVerticalMovement, setHasVerticalMovement] = useState(false);
-    const [gestureLockedAsScroll, setGestureLockedAsScroll] = useState(false);
     const [scrollOffsetX, setScrollOffsetX] = useState(0);
     const [scrollOffsetY, setScrollOffsetY] = useState(0);
-    const [toggledAssetIds, setToggledAssetIds] = useState<Set<string>>(new Set());
+    
+    // Selection state
+    const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    
+    // Drag and drop state
+    const [draggedItem, setDraggedItem] = useState<{ type: 'asset' | 'album', index: number } | null>(null);
+    const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
     
     const needsParentUpdate = useRef(false);
     const pendingAssetsUpdate = useRef<Asset[] | null>(null);
@@ -258,6 +65,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const { language, theme } = useSetting();
     const text = getLanguageText(language as Language);
     const insets = useSafeAreaInsets();
+    const { 
+        createSwipeSelectionPanResponder, 
+        createDragAndDropGesture
+    } = useGesture();
 
     // ============================================================================
     // ANIMATED VALUES
@@ -266,96 +77,54 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const draggedItemIndex = useSharedValue(-1);
 
     // ============================================================================
-    // UTILITY FUNCTIONS
+    // SELECTION MANAGEMENT FUNCTIONS
     // ============================================================================
-    const getAssetIndicesBetween = useCallback((startIndex: number, endIndex: number) => {
-        const indices: number[] = [];
-        let actualStart = startIndex;
-        let actualEnd = endIndex;
-        if (startIndex > endIndex) {
-            actualStart = endIndex;
-            actualEnd = startIndex;
+    const enterSelectionMode = useCallback((assetId: string) => {
+        setIsSelectionMode(true);
+        setSelectedAssetIds(new Set([assetId]));
+        const selectedAsset = assets.find(asset => asset.id === assetId);
+        if (selectedAsset) {
+            onSelectionChange?.([selectedAsset]);
         }
-        for (let i = actualStart; i <= actualEnd; i++) {
-            indices.push(i);
-        }
-        return indices;
-    }, []);
+    }, [assets, onSelectionChange]);
 
-    const hasSufficientHorizontalMovement = useCallback((startPos: { x: number; y: number }, currentPos: { x: number; y: number }) => {
-        const horizontalThreshold = 10;
-        const dx = Math.abs(currentPos.x - startPos.x);
-        const dy = Math.abs(currentPos.y - startPos.y);
-        return dx >= horizontalThreshold && dx > dy * 0.5;
-    }, []);
+    const exitSelectionMode = useCallback(() => {
+        setIsSelectionMode(false);
+        setSelectedAssetIds(new Set());
+        onSelectionChange?.([]);
+    }, [onSelectionChange]);
 
-    /**
-     * Check if there has been significant vertical movement (worklet) - used for the swipe selection functionality
-     * @param startPos - The starting position
-     * @param currentPos - The current position
-     * @returns True if there has been significant vertical movement, false otherwise
-     */
-    const hasSignificantVerticalMovement = useCallback((startPos: { x: number; y: number }, currentPos: { x: number; y: number }) => {
-        const verticalThreshold = 10;
-        const dx = Math.abs(currentPos.x - startPos.x);
-        const dy = Math.abs(currentPos.y - startPos.y);
-        return dy >= verticalThreshold && dy > dx * 1.5;
-    }, []);
+    const toggleAssetSelection = useCallback((assetId: string) => {
+        if (!isSelectionMode) return;
 
-    /**
-     * Get the item at a position in the grid (worklet) - used for the swipe selection functionality
-     * @param position - The position to get the item at
-     * @returns The item at the position
-     */
-    const getItemAtPosition = useCallback((position: { x: number; y: number }) => {
-        const adjustedX = position.x - gap + scrollOffsetX;
-        const adjustedY = position.y - insets.top - (isExpanded ? 430 : 250) + scrollOffsetY;
-        
-        if (adjustedX < 0 || adjustedY < 0) return null;
-
-        const column = Math.floor(adjustedX / (itemSize + gap));
-        const row = Math.floor(adjustedY / (itemSize + gap));
-        
-        if (column < 0 || column >= numColumns || row < 0) return null;
-
-        const index = row * numColumns + column;
-        return assets[index] || null;
-    }, [assets, scrollOffsetX, scrollOffsetY, insets.top]);
-
-    const processDeterministicSelection = useCallback((currentIndex: number) => {
-        if (initialAssetIndex === null || isDeselectGesture === null) return;
-        
-        const indicesToProcess = getAssetIndicesBetween(initialAssetIndex, currentIndex);
-        
-        indicesToProcess.forEach(index => {
-            if (index >= 0 && index < assets.length) {
-                const asset = assets[index];
-                const assetId = asset.id;
-                
-                if (!toggledAssetIds.has(assetId)) {
-                    const isCurrentlySelected = selectedAssets.has(assetId);
-                    
-                    if (isDeselectGesture) {
-                        if (isCurrentlySelected) {
-                            setSelectedAssets(prev => {
-                                const newSet = new Set(prev);
-                                newSet.delete(assetId);
-                                return newSet;
-                            });
-                        }
-                    } else {
-                        if (!isCurrentlySelected) {
-                            setSelectedAssets(prev => new Set([...prev, assetId]));
-                        }
-                    }
-                    
-                    setToggledAssetIds(prev => new Set([...prev, assetId]));
-                }
+        setSelectedAssetIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(assetId)) {
+                newSet.delete(assetId);
+            } else {
+                newSet.add(assetId);
             }
+            
+            const selectedAssetsArray = assets.filter(asset => newSet.has(asset.id));
+            onSelectionChange?.(selectedAssetsArray);
+            
+            return newSet;
         });
-        
-        setLastProcessedIndex(currentIndex);
-    }, [initialAssetIndex, isDeselectGesture, assets, selectedAssets, toggledAssetIds, getAssetIndicesBetween]);
+    }, [isSelectionMode, assets, onSelectionChange]);
+
+    const clearSelection = useCallback(() => {
+        setSelectedAssetIds(new Set());
+        setIsSelectionMode(false);
+        onSelectionChange?.([]);
+    }, [onSelectionChange]);
+
+    // ============================================================================
+    // DRAG AND DROP MANAGEMENT FUNCTIONS
+    // ============================================================================
+    const resetDragState = useCallback(() => {
+        setDraggedItem(null);
+        setDropTargetIndex(null);
+    }, []);
 
     // ============================================================================
     // EVENT HANDLERS
@@ -391,66 +160,22 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
      */
     const handleShareSelectedAssets = useCallback(() => {
         // Placeholder for share functionality
-        console.log('Share selected assets:', Array.from(selectedAssets));
-    }, [selectedAssets]);
+        console.log('Share selected assets:', Array.from(selectedAssetIds));
+    }, [selectedAssetIds]);
 
     /**
      * Handle the more options of selected assets
      */
     const handleMoreOptions = useCallback(() => {
         // Placeholder for more options
-        console.log('More options for selected assets:', Array.from(selectedAssets));
-    }, [selectedAssets]);
-
-    /**
-     * Enter selection mode and select the asset
-     * @param assetId - The ID of the asset to select
-     */
-    const enterSelectionModeAndSelect = useCallback((assetId: string) => {
-        setIsSelectionMode(true);
-        setSelectedAssets(new Set([assetId]));
-        const selectedAsset = assets.find(asset => asset.id === assetId);
-        if (selectedAsset) {
-            onSelectionChange?.([selectedAsset]);
-        }
-    }, [assets, onSelectionChange]);
-
-    /**
-     * Exit selection mode
-     */
-    const exitSelectionMode = useCallback(() => {
-        setIsSelectionMode(false);
-        setSelectedAssets(new Set());
-        onSelectionChange?.([]);
-    }, [onSelectionChange]);
-
-    /**
-     * Toggle the selection of an asset
-     * @param assetId - The ID of the asset to toggle
-     */
-    const toggleAssetSelection = useCallback((assetId: string) => {
-        if (!isSelectionMode) return;
-
-        setSelectedAssets(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(assetId)) {
-                newSet.delete(assetId);
-            } else {
-                newSet.add(assetId);
-            }
-            
-            const selectedAssetsArray = assets.filter(asset => newSet.has(asset.id));
-            onSelectionChange?.(selectedAssetsArray);
-            
-            return newSet;
-        });
-    }, [isSelectionMode, assets, onSelectionChange]);
+        console.log('More options for selected assets:', Array.from(selectedAssetIds));
+    }, [selectedAssetIds]);
 
     /**
      * Handle the deletion of selected assets
      */
     const handleDeleteSelectedAssets = useCallback(() => {
-        if (selectedAssets.size === 0) return;
+        if (selectedAssetIds.size === 0) return;
 
         ActionSheetIOS.showActionSheetWithOptions({
             message: text.deletingAssetMessage,
@@ -459,10 +184,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             cancelButtonIndex: 1,
         }, (buttonIndex) => {
             if (buttonIndex === 0) {
-                handleDeleteSelectedAssetsFromDb(Array.from(selectedAssets));
+                handleDeleteSelectedAssetsFromDb(Array.from(selectedAssetIds));
             }
         });
-    }, [selectedAssets, text]);
+    }, [selectedAssetIds, text]);
 
     /**
      * Handle the deletion of selected assets from the database
@@ -478,13 +203,11 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                 return updatedAssets;
             });
             
-            setSelectedAssets(new Set());
-            setIsSelectionMode(false);
-            onSelectionChange?.([]);
+            clearSelection();
         } catch (error) {
             console.error('Error deleting selected assets:', error);
         }
-    }, [onSelectionChange, onAssetsUpdate]);
+    }, [onAssetsUpdate, clearSelection]);
 
     /**
      * Handle the expansion and collapse of sub-albums
@@ -545,236 +268,130 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     // GESTURE HANDLERS
     // ============================================================================
     /**
-     * Get the position of an item in the grid (worklet) - used for the drag and drop functionality
-     * @param x - The x coordinate of the item
-     * @param y - The y coordinate of the item
-     * @param itemListLength - The length of the item list
-     * @returns The index of the item in the grid
-     */
-    const getGridPositionWorklet = useCallback((x: number, y: number, itemListLength: number): number | null => {
-        'worklet';
-        const adjustedX = x - gap + scrollOffsetX;
-        const adjustedY = y + (isExpanded ? -70 : 120) + scrollOffsetY;
-        
-        if (adjustedX < 0 || adjustedY < 0) return null;
-
-        const column = Math.floor(adjustedX / (itemSize + gap));
-        const row = Math.floor(adjustedY / (itemSize + gap));
-        
-        if (column < 0 || column >= numColumns || row < 0) return null;
-
-        const index = row * numColumns + column;
-        
-        if (index >= 0 && index < itemListLength) {
-            return index;
-        }
-        return null;
-    }, [scrollOffsetX, scrollOffsetY]);
-
-    /**
-     * Set the dragged item (worklet)
-     * @param item - The item to set
-     */
-    const setDraggedItemJS = useCallback((item: { type: 'asset' | 'album', index: number } | null) => {
-        setDraggedItem(item);
-    }, []);
-
-    /**
-     * Set the drop target index (worklet)
-     * @param index - The index to set
-     */
-    const setDropTargetIndexJS = useCallback((index: number | null) => {
-        setDropTargetIndex(index);
-    }, []);
-
-    /**
      * The gesture handler for the grid
      */
-    const gestureHandler = useMemo(() => Gesture.Pan()
-        .onStart((event) => {
-            'worklet';
-            if (isSelectionMode) return;
-            
-            const touchX = event.x;
-            const touchY = event.y;
-            
-            const albumSectionHeight = subAlbums.length > 0 ? 100 : 0;
-            const isInAlbumSection = touchY < albumSectionHeight;
-            
-            if (isInAlbumSection && subAlbums.length > 0) {
-                const albumIndex = Math.floor(touchY / 120) * 3 + Math.floor(touchX / (screenWidth / 3));
-                if (albumIndex >= 0 && albumIndex < subAlbums.length) {
-                    draggedItemType.value = 'album';
-                    draggedItemIndex.value = albumIndex;
-                    runOnJS(setDraggedItemJS)({ type: 'album', index: albumIndex });
-                }
-            } else {
-                const assetIndex = getGridPositionWorklet(touchX, touchY - 200, assets.length);
-                if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length) {
-                    draggedItemType.value = 'asset';
-                    draggedItemIndex.value = assetIndex;
-                    runOnJS(setDraggedItemJS)({ type: 'asset', index: assetIndex });
-                }
+    const gestureHandler = useMemo(() => {
+        const gestureConfig = {
+            numColumns,
+            itemSize,
+            gap,
+            offsetY: insets.top + (isExpanded ? 430 : 250),
+            offsetX: gap,
+            scrollOffsetX,
+            scrollOffsetY,
+            componentType: 'album' as const,
+            isExpanded,
+            screenWidth,
+            albumSectionHeight: subAlbums.length > 0 ? 100 : 0,
+            albumItemHeight: 120,
+            albumItemsPerRow: 3,
+        };
+
+        return createDragAndDropGesture(
+            gestureConfig,
+            assets,
+            subAlbums,
+            isSelectionMode,
+            {
+                onDragStart: (type: 'asset' | 'album', index: number) => {
+                    draggedItemType.value = type;
+                    draggedItemIndex.value = index;
+                    setDraggedItem({ type, index });
+                },
+                onDragUpdate: (type: 'asset' | 'album', index: number | null) => {
+                    setDropTargetIndex(index);
+                },
+                onDragEnd: (fromIndex: number, toIndex: number, type: 'asset' | 'album') => {
+                    if (type === 'album') {
+                        reorderAlbums(fromIndex, toIndex);
+                    } else {
+                        reorderAssets(fromIndex, toIndex);
+                    }
+                    
+                    draggedItemType.value = null;
+                    draggedItemIndex.value = -1;
+                    resetDragState();
+                },
             }
-        })
-        .onUpdate((event) => {
-            'worklet';
-            if (isSelectionMode) return;
-            
-            const currentDraggedType = draggedItemType.value;
-            const currentDraggedIndex = draggedItemIndex.value;
-            
-            if (currentDraggedType === null || currentDraggedIndex === -1) return;
-            
-            const currentX = event.x;
-            const currentY = event.y;
-            
-            if (currentDraggedType === 'album') {
-                const albumIndex = Math.floor(currentY / 120) * 3 + Math.floor(currentX / (screenWidth / 3));
-                if (albumIndex >= 0 && albumIndex < subAlbums.length && albumIndex !== currentDraggedIndex) {
-                    runOnJS(setDropTargetIndexJS)(albumIndex);
-                } else {
-                    runOnJS(setDropTargetIndexJS)(null);
-                }
-            } else {
-                const assetIndex = getGridPositionWorklet(currentX, currentY - 200, assets.length);
-                if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length && assetIndex !== currentDraggedIndex) {
-                    runOnJS(setDropTargetIndexJS)(assetIndex);
-                } else {
-                    runOnJS(setDropTargetIndexJS)(null);
-                }
-            }
-        })
-        .onEnd((event) => {
-            'worklet';
-            if (isSelectionMode) return;
-            
-            const currentDraggedType = draggedItemType.value;
-            const currentDraggedIndex = draggedItemIndex.value;
-            
-            if (currentDraggedType === null || currentDraggedIndex === -1) return;
-            
-            const dropX = event.x;
-            const dropY = event.y;
-            
-            if (currentDraggedType === 'album') {
-                const albumIndex = Math.floor(dropY / 120) * 3 + Math.floor(dropX / (screenWidth / 3));
-                if (albumIndex >= 0 && albumIndex < subAlbums.length && albumIndex !== currentDraggedIndex) {
-                    runOnJS(reorderAlbums)(currentDraggedIndex, albumIndex);
-                }
-            } else {
-                const assetIndex = getGridPositionWorklet(dropX, dropY - 200, assets.length);
-                if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length && assetIndex !== currentDraggedIndex) {
-                    runOnJS(reorderAssets)(currentDraggedIndex, assetIndex);
-                }
-            }
-            
-            draggedItemType.value = null;
-            draggedItemIndex.value = -1;
-            runOnJS(setDraggedItemJS)(null);
-            runOnJS(setDropTargetIndexJS)(null);
-        }), [isSelectionMode, subAlbums.length, assets.length, setDraggedItemJS, setDropTargetIndexJS, getGridPositionWorklet, reorderAlbums, reorderAssets]);
+        );
+    }, [
+        isSelectionMode, 
+        subAlbums.length, 
+        assets.length, 
+        isExpanded, 
+        scrollOffsetX, 
+        scrollOffsetY, 
+        createDragAndDropGesture, 
+        reorderAlbums, 
+        reorderAssets,
+        resetDragState
+    ]);
 
     /**
      * The pan responder for the swipe selection
      */
     const swipeSelectionPanResponder = useMemo(() => {
-        if (!isSelectionMode) return null;
+        const gestureConfig = {
+            numColumns,
+            itemSize,
+            gap,
+            offsetY: insets.top + (isExpanded ? 350 : 250),
+            offsetX: gap,
+            scrollOffsetX,
+            scrollOffsetY,
+            componentType: 'album' as const,
+            isExpanded,
+        };
 
-        return PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
-                return !isScrolling && (Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10);
-            },
-            onPanResponderGrant: (evt: GestureResponderEvent) => {
-                const startPosition = { x: evt.nativeEvent.pageX, y: evt.nativeEvent.pageY };
-                setGestureStartPosition(startPosition);
-                
-                setToggledAssetIds(new Set());
-                setInitialAssetIndex(null);
-                setIsDeselectGesture(null);
-                setLastProcessedIndex(null);
-                setHasHorizontalMovement(false);
-                setHasVerticalMovement(false);
-                setGestureLockedAsScroll(false);
-                
-                setIsSwipeSelecting(false);
-            },
-            onPanResponderMove: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
-                if (!gestureStartPosition) return;
-
-                const currentPosition = { x: evt.nativeEvent.pageX, y: evt.nativeEvent.pageY };
-                
-                if (gestureLockedAsScroll) return;
-                
-                if (!hasVerticalMovement) {
-                    const hasVertical = hasSignificantVerticalMovement(gestureStartPosition, currentPosition);
-                    setHasVerticalMovement(hasVertical);
-                    
-                    if (hasVertical) {
-                        setGestureLockedAsScroll(true);
-                        setIsSwipeSelecting(false);
-                        return;
-                    }
-                }
-                
-                if (!hasHorizontalMovement) {
-                    const hasHorizontal = hasSufficientHorizontalMovement(gestureStartPosition, currentPosition);
-                    setHasHorizontalMovement(hasHorizontal);
-                    
-                    if (hasHorizontal) {
-                        setIsSwipeSelecting(true);
-                        
-                        const initialAsset = getItemAtPosition(gestureStartPosition);
-                        if (initialAsset) {
-                            const initialIndex = assets.indexOf(initialAsset);
-                            setInitialAssetIndex(initialIndex);
-                            
-                            const isCurrentlySelected = selectedAssets.has(initialAsset.id);
-                            setIsDeselectGesture(isCurrentlySelected);
-                            
-                            processDeterministicSelection(initialIndex);
+        return createSwipeSelectionPanResponder(
+            gestureConfig,
+            assets,
+            selectedAssetIds,
+            isScrolling,
+            isSelectionMode,
+            {
+                onAssetToggle: (assetId: string, shouldSelect: boolean) => {
+                    if (shouldSelect) {
+                        if (!selectedAssetIds.has(assetId)) {
+                            setSelectedAssetIds(prev => {
+                                const newSet = new Set(prev);
+                                newSet.add(assetId);
+                                const selectedAssetsArray = assets.filter(asset => newSet.has(asset.id));
+                                onSelectionChange?.(selectedAssetsArray);
+                                return newSet;
+                            });
+                        }
+                    } else {
+                        if (selectedAssetIds.has(assetId)) {
+                            setSelectedAssetIds(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(assetId);
+                                const selectedAssetsArray = assets.filter(asset => newSet.has(asset.id));
+                                onSelectionChange?.(selectedAssetsArray);
+                                return newSet;
+                            });
                         }
                     }
-                    return;
-                }
-                
-                if (!isSwipeSelecting) return;
-                
-                const currentAsset = getItemAtPosition(currentPosition);
-                setCurrentHoverAssetId(currentAsset?.id || null);
-                
-                if (currentAsset) {
-                    const currentIndex = assets.indexOf(currentAsset);
-                    processDeterministicSelection(currentIndex);
-                }
-            },
-            onPanResponderRelease: () => {
-                setIsSwipeSelecting(false);
-                setToggledAssetIds(new Set());
-                setInitialAssetIndex(null);
-                setIsDeselectGesture(null);
-                setLastProcessedIndex(null);
-                setHasHorizontalMovement(false);
-                setHasVerticalMovement(false);
-                setGestureLockedAsScroll(false);
-                setGestureStartPosition(null);
-                setCurrentHoverAssetId(null);
-            },
-            onPanResponderTerminate: () => {
-                setIsSwipeSelecting(false);
-                setToggledAssetIds(new Set());
-                setInitialAssetIndex(null);
-                setIsDeselectGesture(null);
-                setLastProcessedIndex(null);
-                setHasHorizontalMovement(false);
-                setHasVerticalMovement(false);
-                setGestureLockedAsScroll(false);
-                setGestureStartPosition(null);
-                setCurrentHoverAssetId(null);
-            },
-        });
-    }, [isSelectionMode, isScrolling, selectedAssets, assets, hasSufficientHorizontalMovement, hasSignificantVerticalMovement, getItemAtPosition, processDeterministicSelection, gestureStartPosition, gestureLockedAsScroll, hasHorizontalMovement, hasVerticalMovement, isSwipeSelecting]);
+                },
+                onHoverChange: (assetId: string | null) => {
+                    // Hover state is handled by the gesture provider
+                },
+                onSwipeSelectingChange: (isSelecting: boolean) => {
+                    // Swipe selecting state is handled by the gesture provider
+                },
+            }
+        );
+    }, [
+        isSelectionMode, 
+        selectedAssetIds, 
+        assets, 
+        isScrolling, 
+        isExpanded, 
+        scrollOffsetX, 
+        scrollOffsetY, 
+        createSwipeSelectionPanResponder, 
+        onSelectionChange
+    ]);
 
     // ============================================================================
     // RENDERERS
@@ -788,8 +405,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const renderAssetItem = useCallback(({ item, index }: { item: Asset; index: number }) => {
         const isCurrentlyDragged = draggedItem?.type === 'asset' && draggedItem.index === index;
         const isDropTarget = dropTargetIndex === index && !isCurrentlyDragged && draggedItem?.type === 'asset';
-        const isSelected = selectedAssets.has(item.id);
-        const isHovered = currentHoverAssetId === item.id;
+        const isSelected = selectedAssetIds.has(item.id);
         
         return (
             <AssetItem 
@@ -806,19 +422,34 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                 }}
                 onLongPress={() => {
                     if (!isSelectionMode) {
-                        enterSelectionModeAndSelect(item.id);
+                        enterSelectionMode(item.id);
                     } else {
                         toggleAssetSelection(item.id);
                     }
                 }}
                 isScrolling={isScrolling}
-                isHovered={isHovered}
+                isHovered={false} // Hover state is handled by gesture provider
             />
         );
-    }, [draggedItem, dropTargetIndex, selectedAssets, isSelectionMode, toggleAssetSelection, onAssetPress, enterSelectionModeAndSelect, isScrolling, currentHoverAssetId]);
+    }, [
+        draggedItem, 
+        dropTargetIndex, 
+        selectedAssetIds, 
+        isSelectionMode, 
+        toggleAssetSelection, 
+        onAssetPress, 
+        enterSelectionMode, 
+        isScrolling
+    ]);
 
     const keyExtractor = useCallback((item: Asset) => item.id, []);
 
+    /**
+     * Render a sub-album item
+     * @param subAlbum - The sub-album to render
+     * @param index - The index of the sub-album
+     * @returns The rendered sub-album item
+     */
     const SubAlbumItem = useMemo(() => {
         return ({ subAlbum, index }: { subAlbum: Album; index: number }) => {
             const isCurrentlyDragged = draggedItem?.type === 'album' && draggedItem.index === index;
@@ -880,32 +511,29 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             setAssets(currentAssets);
             prevAssetsRef.current = currentAssets;
             
-            setSelectedAssets(prev => {
-                const newSet = new Set(prev);
-                let hasChanges = false;
-                
-                for (const assetId of prev) {
-                    if (!currentAssets.some(asset => asset.id === assetId)) {
-                        newSet.delete(assetId);
-                        hasChanges = true;
-                    }
+            // Update selection state when assets change
+            const newSelectedIds = new Set(selectedAssetIds);
+            let hasChanges = false;
+            
+            for (const assetId of selectedAssetIds) {
+                if (!currentAssets.some(asset => asset.id === assetId)) {
+                    newSelectedIds.delete(assetId);
+                    hasChanges = true;
                 }
+            }
+            
+            if (hasChanges) {
+                const selectedAssetsArray = currentAssets.filter(asset => newSelectedIds.has(asset.id));
+                onSelectionChange?.(selectedAssetsArray);
                 
-                if (hasChanges) {
-                    const selectedAssetsArray = currentAssets.filter(asset => newSet.has(asset.id));
-                    onSelectionChange?.(selectedAssetsArray);
-                    
-                    if (newSet.size === 0) {
-                        setIsSelectionMode(false);
-                    }
+                if (newSelectedIds.size === 0) {
+                    exitSelectionMode();
                 }
-                
-                return newSet;
-            });
+            }
         }
         
         setSubAlbums(album.subAlbums || []);
-    }, [album.album_id, album.assets, album.subAlbums, onSelectionChange]);
+    }, [album.album_id, album.assets, album.subAlbums, onSelectionChange, selectedAssetIds, exitSelectionMode]);
     
     useEffect(() => {
         if (needsParentUpdate.current && pendingAssetsUpdate.current) {
@@ -951,6 +579,8 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             {isSelectionMode ? (
                 <Animated.View className="flex-1">
                     <View className="flex-1">
+
+                        {/* Sub Albums Section */}
                         <SubAlbumsSection 
                             subAlbums={subAlbums}
                             isExpanded={isExpanded}
@@ -963,6 +593,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             theme={theme}
                         />
                         
+                        {/* Asset Grid */}
                         <AssetGrid 
                             assets={assets}
                             renderAssetItem={renderAssetItem}
@@ -981,12 +612,12 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                         />
                     </View>
 
+                    {/* Selection Mode Bottom Bar */}
                     <SelectionModeBottomBar 
-                        selectedAssets={selectedAssets}
+                        selectedAssets={selectedAssetIds}
                         onDelete={handleDeleteSelectedAssets}
-                        onShare={handleShareSelectedAssets}
+                        onMove={handleShareSelectedAssets}
                         onCancel={exitSelectionMode}
-                        onMore={handleMoreOptions}
                         text={text}
                         theme={theme}
                     />

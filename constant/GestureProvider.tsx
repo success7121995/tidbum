@@ -5,61 +5,71 @@ import { Gesture } from "react-native-gesture-handler";
 import { runOnJS, withSpring } from "react-native-reanimated";
 
 // ============================================================================
-// TYPES
+// TYPE DEFINITIONS
 // ============================================================================
+
+/**
+ * Configuration object for gesture behavior across different components
+ */
 interface GestureConfig {
-    // Grid configuration
-    numColumns: number;
-    itemSize: number;
-    gap: number;
+    // Grid layout configuration
+    numColumns: number;        // Number of columns in the grid
+    itemSize: number;          // Size of each grid item
+    gap: number;              // Gap between grid items
     
-    // Offset configuration for different components
-    offsetY: number; // Vertical offset (e.g., header height, sub-albums section)
-    offsetX: number; // Horizontal offset
+    // Component positioning offsets
+    offsetY: number;          // Vertical offset (header height, sub-albums section)
+    offsetX: number;          // Horizontal offset
     
-    // Scroll offset tracking
-    scrollOffsetX: number;
-    scrollOffsetY: number;
+    // Scroll position tracking
+    scrollOffsetX: number;    // Current horizontal scroll position
+    scrollOffsetY: number;    // Current vertical scroll position
     
-    // Component-specific adjustments
+    // Component type identification
     componentType: 'album' | 'mediaLibrary' | 'subAlbum' | 'slider';
-    isExpanded?: boolean; // For album component
+    isExpanded?: boolean;     // For album component expansion state
     
-    // Drag and drop configuration
-    screenWidth?: number;
-    albumSectionHeight?: number;
-    albumItemHeight?: number;
-    albumItemsPerRow?: number;
+    // Drag and drop specific configuration
+    screenWidth?: number;     // Screen width for drag calculations
+    albumSectionHeight?: number;  // Height of album section
+    albumItemHeight?: number;     // Height of individual album items
+    albumItemsPerRow?: number;    // Number of albums per row
     
-    // Slider configuration
-    itemWidth?: number;
-    maxScale?: number;
-    minScale?: number;
+    // Slider specific configuration
+    itemWidth?: number;       // Width of slider items
+    maxScale?: number;        // Maximum zoom scale
+    minScale?: number;        // Minimum zoom scale
 }
 
+/**
+ * Internal state tracking for gesture interactions
+ */
 interface GestureState {
-    // Gesture tracking
-    isSwipeSelecting: boolean;
-    gestureStartPosition: { x: number; y: number } | null;
-    hasHorizontalMovement: boolean;
-    hasVerticalMovement: boolean;
-    gestureLockedAsScroll: boolean;
+    // Gesture movement tracking
+    isSwipeSelecting: boolean;                    // Whether currently in swipe selection mode
+    gestureStartPosition: { x: number; y: number } | null;  // Initial touch position
+    hasHorizontalMovement: boolean;               // Whether horizontal movement detected
+    hasVerticalMovement: boolean;                 // Whether vertical movement detected
+    gestureLockedAsScroll: boolean;               // Whether gesture is locked as scroll
     
-    // Selection tracking
-    initialAssetIndex: number | null;
-    isDeselectGesture: boolean | null;
-    lastProcessedIndex: number | null;
-    toggledAssetIds: Set<string>;
-    currentHoverAssetId: string | null;
+    // Selection state tracking
+    initialAssetIndex: number | null;             // Index of first selected asset
+    isDeselectGesture: boolean | null;            // Whether this is a deselect gesture
+    lastProcessedIndex: number | null;            // Last processed asset index
+    toggledAssetIds: Set<string>;                 // Assets toggled in current gesture
+    currentHoverAssetId: string | null;           // Currently hovered asset
     
-    // Row-based selection (for MediaLibrary)
-    visitedRows: Set<number>;
-    rowToggleStates: Map<number, boolean>;
-    currentRow: number | null;
+    // Row-based selection (for MediaLibrary component)
+    visitedRows: Set<number>;                     // Rows visited during gesture
+    rowToggleStates: Map<number, boolean>;        // Toggle state for each row
+    currentRow: number | null;                    // Current row being processed
 }
 
+/**
+ * Main context interface providing all gesture functionality
+ */
 interface GestureContextType {
-    // Core gesture functions
+    // Core gesture creation functions
     createSwipeSelectionPanResponder: (
         config: GestureConfig,
         assets: Asset[],
@@ -68,12 +78,11 @@ interface GestureContextType {
         isSelectionMode: boolean,
         callbacks: {
             onAssetToggle: (assetId: string, shouldSelect: boolean) => void;
-            onHoverChange: (assetId: string | null) => void;
-            onSwipeSelectingChange: (isSelecting: boolean) => void;
+            onHoverChange?: (assetId: string | null) => void;
+            onSwipeSelectingChange?: (isSelecting: boolean) => void;
         }
     ) => any;
     
-    // Drag and drop gesture functions
     createDragAndDropGesture: (
         config: GestureConfig,
         assets: Asset[],
@@ -86,7 +95,6 @@ interface GestureContextType {
         }
     ) => any;
     
-    // Slider gesture functions
     createSliderGestures: (
         config: GestureConfig,
         assets: Asset[],
@@ -99,7 +107,6 @@ interface GestureContextType {
         }
     ) => any;
     
-    // Advanced slider gesture functions with internal state management
     createAdvancedSliderGestures: (
         config: GestureConfig,
         assets: Asset[],
@@ -117,7 +124,7 @@ interface GestureContextType {
         }
     ) => any;
     
-    // Utility functions for selection management
+    // Utility manager creation functions
     createSelectionManager: () => {
         selectedAssetIds: Set<string>;
         isSelectionMode: boolean;
@@ -127,7 +134,6 @@ interface GestureContextType {
         clearSelection: (onSelectionChange?: (assets: Asset[]) => void) => void;
     };
     
-    // Utility functions for drag and drop management
     createDragAndDropManager: () => {
         draggedItem: { type: 'asset' | 'album', index: number } | null;
         dropTargetIndex: number | null;
@@ -136,23 +142,31 @@ interface GestureContextType {
         resetDragState: () => void;
     };
     
-    // Utility functions
+    // Utility helper functions
     getItemAtPosition: (position: { x: number; y: number }, config: GestureConfig, assets: Asset[]) => Asset | null;
     getGridPositionWorklet: (x: number, y: number, config: GestureConfig, itemListLength: number) => number | null;
     getAssetIndicesBetween: (startIndex: number, endIndex: number, numColumns: number) => number[];
     hasSufficientHorizontalMovement: (startPos: { x: number; y: number }, currentPos: { x: number; y: number }) => boolean;
     hasSignificantVerticalMovement: (startPos: { x: number; y: number }, currentPos: { x: number; y: number }) => boolean;
     
-    // State management
+    // State management functions
     resetGestureState: () => void;
     getGestureState: () => GestureState;
 }
 
 // ============================================================================
-// CONTEXT
+// CONTEXT CREATION
 // ============================================================================
+
+/**
+ * React context for gesture functionality
+ */
 const GestureContext = createContext<GestureContextType | undefined>(undefined);
 
+/**
+ * Hook to access gesture context
+ * @throws Error if used outside of GestureProvider
+ */
 export const useGesture = () => {
     const context = useContext(GestureContext);
     if (!context) {
@@ -162,12 +176,22 @@ export const useGesture = () => {
 };
 
 // ============================================================================
-// PROVIDER
+// GESTURE PROVIDER COMPONENT
 // ============================================================================
+
+/**
+ * Main provider component that provides gesture functionality to the app
+ * Handles swipe selection, drag and drop, and slider gestures
+ */
 const GestureProvider = ({ children }: { children: React.ReactNode }) => {
+    
     // ============================================================================
-    // STATE
+    // INTERNAL STATE MANAGEMENT
     // ============================================================================
+    
+    /**
+     * Internal gesture state for tracking current interaction
+     */
     const [gestureState, setGestureState] = useState<GestureState>({
         isSwipeSelecting: false,
         gestureStartPosition: null,
@@ -185,15 +209,15 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     // ============================================================================
-    // UTILITY FUNCTIONS
+    // POSITION CALCULATION UTILITIES
     // ============================================================================
     
     /**
-     * Get item at specific screen position
-     * @param position - The position to get the item at
-     * @param config - The configuration for the gesture
-     * @param assets - The assets to get the item from
-     * @returns The item at the position
+     * Calculate which asset is at a given screen position
+     * @param position - Screen coordinates to check
+     * @param config - Gesture configuration with grid layout info
+     * @param assets - Array of assets to search through
+     * @returns The asset at the position, or null if none found
      */
     const getItemAtPosition = useCallback((position: { x: number; y: number }, config: GestureConfig, assets: Asset[]): Asset | null => {
         const { numColumns, itemSize, gap, offsetY, offsetX, scrollOffsetX, scrollOffsetY } = config;
@@ -219,7 +243,13 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     /**
-     * Get grid position worklet for drag and drop functionality
+     * Worklet function for calculating grid position during drag and drop
+     * Must be a worklet for use in gesture handlers
+     * @param x - X coordinate
+     * @param y - Y coordinate  
+     * @param config - Gesture configuration
+     * @param itemListLength - Total number of items in the list
+     * @returns Index of item at position, or null if invalid
      */
     const getGridPositionWorklet = useCallback((x: number, y: number, config: GestureConfig, itemListLength: number): number | null => {
         'worklet';
@@ -243,8 +273,17 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
         return null;
     }, []);
 
+    // ============================================================================
+    // SELECTION RANGE UTILITIES
+    // ============================================================================
+    
     /**
      * Get all asset indices between two positions (inclusive)
+     * Used for swipe selection to determine which assets to toggle
+     * @param startIndex - Starting index
+     * @param endIndex - Ending index
+     * @param numColumns - Number of columns in the grid
+     * @returns Array of indices between start and end
      */
     const getAssetIndicesBetween = useCallback((startIndex: number, endIndex: number, numColumns: number): number[] => {
         const indices: number[] = [];
@@ -263,8 +302,16 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
         return indices;
     }, []);
 
+    // ============================================================================
+    // MOVEMENT DETECTION UTILITIES
+    // ============================================================================
+    
     /**
      * Check if there's sufficient horizontal movement to trigger selection
+     * Prevents accidental selections from small finger movements
+     * @param startPos - Starting position
+     * @param currentPos - Current position
+     * @returns True if horizontal movement is sufficient for selection
      */
     const hasSufficientHorizontalMovement = useCallback((startPos: { x: number; y: number }, currentPos: { x: number; y: number }): boolean => {
         const horizontalThreshold = 15; // Increased to 15px for better scroll detection
@@ -277,6 +324,10 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
 
     /**
      * Check if there's significant vertical movement (scrolling)
+     * Used to distinguish between scrolling and selection gestures
+     * @param startPos - Starting position
+     * @param currentPos - Current position
+     * @returns True if vertical movement indicates scrolling
      */
     const hasSignificantVerticalMovement = useCallback((startPos: { x: number; y: number }, currentPos: { x: number; y: number }): boolean => {
         const verticalThreshold = 10; // 10px vertical movement threshold
@@ -287,34 +338,17 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
         return dy >= verticalThreshold && dy > dx * 1.5;
     }, []);
 
-    /**
-     * Reset gesture state
-     */
-    const resetGestureState = useCallback(() => {
-        setGestureState({
-            isSwipeSelecting: false,
-            gestureStartPosition: null,
-            hasHorizontalMovement: false,
-            hasVerticalMovement: false,
-            gestureLockedAsScroll: false,
-            initialAssetIndex: null,
-            isDeselectGesture: null,
-            lastProcessedIndex: null,
-            toggledAssetIds: new Set(),
-            currentHoverAssetId: null,
-            visitedRows: new Set(),
-            rowToggleStates: new Map(),
-            currentRow: null,
-        });
-    }, []);
-
-    /**
-     * Get current gesture state
-     */
-    const getGestureState = useCallback(() => gestureState, [gestureState]);
-
+    // ============================================================================
+    // SELECTION PROCESSING UTILITIES
+    // ============================================================================
+    
     /**
      * Process deterministic selection based on gesture type
+     * Ensures consistent selection behavior during swipe gestures
+     * @param currentIndex - Current asset index being processed
+     * @param assets - Array of all assets
+     * @param selectedAssetIds - Currently selected asset IDs
+     * @param onAssetToggle - Callback to toggle asset selection
      */
     const processDeterministicSelection = useCallback((
         currentIndex: number,
@@ -366,17 +400,51 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
     }, [gestureState, getAssetIndicesBetween]);
 
     // ============================================================================
-    // PAN RESPONDER CREATION
+    // STATE MANAGEMENT UTILITIES
     // ============================================================================
+    
+    /**
+     * Reset all gesture state to initial values
+     * Called when gesture ends or is cancelled
+     */
+    const resetGestureState = useCallback(() => {
+        setGestureState({
+            isSwipeSelecting: false,
+            gestureStartPosition: null,
+            hasHorizontalMovement: false,
+            hasVerticalMovement: false,
+            gestureLockedAsScroll: false,
+            initialAssetIndex: null,
+            isDeselectGesture: null,
+            lastProcessedIndex: null,
+            toggledAssetIds: new Set(),
+            currentHoverAssetId: null,
+            visitedRows: new Set(),
+            rowToggleStates: new Map(),
+            currentRow: null,
+        });
+    }, []);
 
     /**
-     * Create swipe selection pan responder
-     * @param config - The configuration for the gesture
-     * @param assets - The assets to get the item from
-     * @param selectedAssetIds - The selected asset ids
-     * @param isScrolling - Whether the user is scrolling
-     * @param isSelectionMode - Whether the user is in selection mode
-     * @param callbacks - The callbacks to call when the gesture is triggered
+     * Get current gesture state
+     * @returns Current gesture state object
+     */
+    const getGestureState = useCallback(() => gestureState, [gestureState]);
+
+    // ============================================================================
+    // SWIPE SELECTION GESTURE CREATION
+    // ============================================================================
+    
+    /**
+     * Create pan responder for swipe selection functionality
+     * Handles multi-asset selection through swipe gestures
+     * @param config - Gesture configuration
+     * @param assets - Array of assets to select from
+     * @param selectedAssetIds - Currently selected asset IDs
+     * @param isScrolling - Whether user is currently scrolling
+     * @param isSelectionMode - Whether in selection mode
+     * @param callbacks - Callbacks for selection events
+     * @returns PanResponder object or null if not in selection mode
      */
     const createSwipeSelectionPanResponder = useCallback((
         config: GestureConfig,
@@ -386,8 +454,8 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
         isSelectionMode: boolean,
         callbacks: {
             onAssetToggle: (assetId: string, shouldSelect: boolean) => void;
-            onHoverChange: (assetId: string | null) => void;
-            onSwipeSelectingChange: (isSelecting: boolean) => void;
+            onHoverChange?: (assetId: string | null) => void;
+            onSwipeSelectingChange?: (isSelecting: boolean) => void;
         }
     ) => {
         if (!isSelectionMode) return null;
@@ -397,6 +465,11 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             onMoveShouldSetPanResponder: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
                 return !isScrolling && (Math.abs(gestureState.dx) > 10 || Math.abs(gestureState.dy) > 10);
             },
+            
+            /**
+             * Handle gesture start
+             * Initialize gesture state and determine initial asset
+             */
             onPanResponderGrant: (evt: GestureResponderEvent) => {
                 const startPosition = { x: evt.nativeEvent.pageX, y: evt.nativeEvent.pageY };
                 
@@ -419,10 +492,8 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             },
 
             /**
-             * On pan responder move
-             * @param evt - The event
-             * @param gestureState - The gesture state
-             * @returns void
+             * Handle gesture movement
+             * Process selection based on movement direction and position
              */
             onPanResponderMove: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
                 const currentState = getGestureState();
@@ -435,7 +506,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                     return;
                 }
                 
-                // Check for vertical movement first
+                // Check for vertical movement first (scrolling)
                 if (!currentState.hasVerticalMovement) {
                     const hasVertical = hasSignificantVerticalMovement(currentState.gestureStartPosition, currentPosition);
                     
@@ -446,12 +517,12 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                             gestureLockedAsScroll: true,
                             isSwipeSelecting: false
                         }));
-                        callbacks.onSwipeSelectingChange(false);
+                        callbacks.onSwipeSelectingChange?.(false);
                         return;
                     }
                 }
                 
-                // Check for horizontal movement threshold
+                // Check for horizontal movement threshold (selection)
                 if (!currentState.hasHorizontalMovement) {
                     const hasHorizontal = hasSufficientHorizontalMovement(currentState.gestureStartPosition, currentPosition);
                     
@@ -461,7 +532,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                             hasHorizontalMovement: true,
                             isSwipeSelecting: true
                         }));
-                        callbacks.onSwipeSelectingChange(true);
+                        callbacks.onSwipeSelectingChange?.(true);
                         
                         // Process the initial asset if we started on one
                         const initialAsset = getItemAtPosition(currentState.gestureStartPosition, config, assets);
@@ -476,7 +547,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                                 currentHoverAssetId: initialAsset.id
                             }));
                             
-                            callbacks.onHoverChange(initialAsset.id);
+                            callbacks.onHoverChange?.(initialAsset.id);
                             
                             // Process the initial asset
                             processDeterministicSelection(initialIndex, assets, selectedAssetIds, callbacks.onAssetToggle);
@@ -494,7 +565,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                 const currentAsset = getItemAtPosition(currentPosition, config, assets);
                 
                 // Update hover state for visual feedback
-                callbacks.onHoverChange(currentAsset?.id || null);
+                callbacks.onHoverChange?.(currentAsset?.id || null);
                 setGestureState(prev => ({
                     ...prev,
                     currentHoverAssetId: currentAsset?.id || null
@@ -507,22 +578,22 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             },
 
             /**
-             * On pan responder release
-             * @returns void
+             * Handle gesture release
+             * Clean up state and callbacks
              */
             onPanResponderRelease: () => {
-                callbacks.onSwipeSelectingChange(false);
-                callbacks.onHoverChange(null);
+                callbacks.onSwipeSelectingChange?.(false);
+                callbacks.onHoverChange?.(null);
                 resetGestureState();
             },
 
             /**
-             * On pan responder terminate
-             * @returns void
+             * Handle gesture termination
+             * Clean up state and callbacks
              */
             onPanResponderTerminate: () => {
-                callbacks.onSwipeSelectingChange(false);
-                callbacks.onHoverChange(null);
+                callbacks.onSwipeSelectingChange?.(false);
+                callbacks.onHoverChange?.(null);
                 resetGestureState();
             },
         });
@@ -531,13 +602,16 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
     // ============================================================================
     // DRAG AND DROP GESTURE CREATION
     // ============================================================================
+    
     /**
-     * Create drag and drop gesture
-     * @param config - The configuration for the gesture
-     * @param assets - The assets to get the item from
-     * @param subAlbums - The sub albums to get the item from
-     * @param isSelectionMode - Whether the user is in selection mode
-     * @param callbacks - The callbacks to call when the gesture is triggered
+     * Create gesture handler for drag and drop functionality
+     * Supports dragging both assets and albums to different positions
+     * @param config - Gesture configuration
+     * @param assets - Array of assets
+     * @param subAlbums - Array of sub-albums
+     * @param isSelectionMode - Whether in selection mode
+     * @param callbacks - Callbacks for drag events
+     * @returns Gesture object or null if in selection mode
      */
     const createDragAndDropGesture = useCallback((
         config: GestureConfig,
@@ -554,9 +628,8 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
 
         return Gesture.Pan()
             /**
-             * On pan start
-             * @param event - The event
-             * @returns void
+             * Handle drag start
+             * Determine what type of item is being dragged and its index
              */
             .onStart((event) => {
                 'worklet';
@@ -567,6 +640,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                 const isInAlbumSection = touchY < albumSectionHeight;
                 
                 if (isInAlbumSection && subAlbums.length > 0) {
+                    // Handle album drag
                     const albumItemHeight = config.albumItemHeight || 120;
                     const albumItemsPerRow = config.albumItemsPerRow || 3;
                     const screenWidth = config.screenWidth || 375;
@@ -576,6 +650,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                         runOnJS(callbacks.onDragStart)('album', albumIndex);
                     }
                 } else {
+                    // Handle asset drag
                     const assetIndex = getGridPositionWorklet(touchX, touchY - 200, config, assets.length);
                     if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length) {
                         runOnJS(callbacks.onDragStart)('asset', assetIndex);
@@ -584,9 +659,8 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             })
 
             /**
-             * On pan update
-             * @param event - The event
-             * @returns void
+             * Handle drag update
+             * Track current drag position and update drop target
              */
             .onUpdate((event) => {
                 'worklet';
@@ -597,6 +671,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                 const isInAlbumSection = currentY < albumSectionHeight;
                 
                 if (isInAlbumSection && subAlbums.length > 0) {
+                    // Update album drop target
                     const albumItemHeight = config.albumItemHeight || 120;
                     const albumItemsPerRow = config.albumItemsPerRow || 3;
                     const screenWidth = config.screenWidth || 375;
@@ -608,6 +683,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                         runOnJS(callbacks.onDragUpdate)('album', null);
                     }
                 } else {
+                    // Update asset drop target
                     const assetIndex = getGridPositionWorklet(currentX, currentY - 200, config, assets.length);
                     if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length) {
                         runOnJS(callbacks.onDragUpdate)('asset', assetIndex);
@@ -618,9 +694,8 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             })
 
             /**
-             * On pan end
-             * @param event - The event
-             * @returns void
+             * Handle drag end
+             * Complete the drag operation and trigger reordering
              */
             .onEnd((event) => {
                 'worklet';
@@ -631,6 +706,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                 const isInAlbumSection = dropY < albumSectionHeight;
                 
                 if (isInAlbumSection && subAlbums.length > 0) {
+                    // Complete album drop
                     const albumItemHeight = config.albumItemHeight || 120;
                     const albumItemsPerRow = config.albumItemsPerRow || 3;
                     const screenWidth = config.screenWidth || 375;
@@ -641,6 +717,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                         runOnJS(callbacks.onDragEnd)(0, albumIndex, 'album');
                     }
                 } else {
+                    // Complete asset drop
                     const assetIndex = getGridPositionWorklet(dropX, dropY - 200, config, assets.length);
                     if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length) {
                         // Note: You'll need to track the original index from onStart
@@ -653,11 +730,14 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
     // ============================================================================
     // SLIDER GESTURE CREATION
     // ============================================================================
+    
     /**
-     * Create slider gestures (pan, pinch, double tap)
-     * @param config - The configuration for the gesture
-     * @param assets - The assets to get the item from
-     * @param callbacks - The callbacks to call when the gesture is triggered
+     * Create basic slider gestures (pan, pinch, double tap)
+     * Provides fundamental slider interaction without internal state management
+     * @param config - Gesture configuration
+     * @param assets - Array of assets
+     * @param callbacks - Callbacks for gesture events
+     * @returns Composed gesture object
      */
     const createSliderGestures = useCallback((
         config: GestureConfig,
@@ -675,7 +755,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
         const minScale = config.minScale || 1;
 
         /**
-         * Handle pan gesture
+         * Pan gesture for navigation and zoomed image movement
          */
         const panGesture = Gesture.Pan()
             .onUpdate((event) => {
@@ -688,7 +768,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             });
 
         /**
-         * Handle pinch gesture
+         * Pinch gesture for zoom functionality
          */
         const pinchGesture = Gesture.Pinch()
             .onUpdate((event) => {
@@ -701,7 +781,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             });
 
         /**
-         * Handle double tap gesture
+         * Double tap gesture for quick zoom toggle
          */
         const doubleTapGesture = Gesture.Tap()
             .numberOfTaps(2)
@@ -711,7 +791,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             });
 
         /**
-         * Compose all gestures
+         * Compose all gestures to work simultaneously
          */
         return Gesture.Simultaneous(
             Gesture.Simultaneous(panGesture, pinchGesture),
@@ -719,15 +799,14 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
         );
     }, []);
 
-    // ============================================================================
-    // ADVANCED SLIDER GESTURE CREATION
-    // ============================================================================
     /**
      * Create advanced slider gestures with internal state management
-     * @param config - The configuration for the gesture
-     * @param assets - The assets to get the item from
-     * @param sharedValues - Shared values for slider state (translateX, translateY, scale, currentIndex, savedScale, savedTranslateY)
-     * @param callbacks - The callbacks to call when the gesture is triggered
+     * Provides complete slider functionality with automatic state handling
+     * @param config - Gesture configuration
+     * @param assets - Array of assets
+     * @param sharedValues - Shared animated values for slider state
+     * @param callbacks - Callbacks for index and asset changes
+     * @returns Composed gesture object
      */
     const createAdvancedSliderGestures = useCallback((
         config: GestureConfig,
@@ -750,7 +829,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
         const minScale = config.minScale || 1;
 
         /**
-         * Handle pan gesture
+         * Pan gesture with automatic state management
          */
         const panGesture = Gesture.Pan()
             .onUpdate((event) => {
@@ -795,7 +874,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             });
 
         /**
-         * Handle pinch gesture
+         * Pinch gesture with automatic scale constraints
          */
         const pinchGesture = Gesture.Pinch()
             .onUpdate((event) => {
@@ -815,25 +894,27 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             });
 
         /**
-         * Handle double tap gesture
+         * Double tap gesture for quick zoom toggle
          */
         const doubleTapGesture = Gesture.Tap()
             .numberOfTaps(2)
             .onStart(() => {
                 'worklet';
                 if (sharedValues.scale.value > 1) {
+                    // Zoom out to normal size
                     sharedValues.scale.value = withSpring(1);
                     sharedValues.savedScale.value = 1;
                     sharedValues.translateY.value = withSpring(0);
                     sharedValues.savedTranslateY.value = 0;
                 } else {
+                    // Zoom in to 2x
                     sharedValues.scale.value = withSpring(2);
                     sharedValues.savedScale.value = 2;
                 }
             });
 
         /**
-         * Compose all gestures
+         * Compose all gestures to work simultaneously
          */
         return Gesture.Simultaneous(
             Gesture.Simultaneous(panGesture, pinchGesture),
@@ -842,15 +923,21 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     // ============================================================================
-    // UTILITY MANAGERS
+    // UTILITY MANAGER CREATION
     // ============================================================================
+    
     /**
-     * Create selection manager utility functions
+     * Create selection manager with state and utility functions
+     * Provides complete selection mode functionality
+     * @returns Object with selection state and management functions
      */
     const createSelectionManager = useCallback(() => {
         const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
         const [isSelectionMode, setIsSelectionMode] = useState(false);
 
+        /**
+         * Enter selection mode with initial asset selected
+         */
         const enterSelectionMode = useCallback((assetId: string, assets: Asset[], onSelectionChange?: (assets: Asset[]) => void) => {
             setIsSelectionMode(true);
             setSelectedAssetIds(new Set([assetId]));
@@ -860,6 +947,9 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }, []);
 
+        /**
+         * Exit selection mode and clear selection
+         */
         const exitSelectionMode = useCallback((onSelectionChange?: (assets: Asset[]) => void) => {
             setIsSelectionMode(false);
             setSelectedAssetIds(new Set());
@@ -868,6 +958,9 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }, []);
 
+        /**
+         * Toggle selection of a specific asset
+         */
         const toggleAssetSelection = useCallback((assetId: string, assets: Asset[], onSelectionChange?: (assets: Asset[]) => void) => {
             if (!isSelectionMode) return;
 
@@ -888,6 +981,9 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             });
         }, [isSelectionMode]);
 
+        /**
+         * Clear all selections and exit selection mode
+         */
         const clearSelection = useCallback((onSelectionChange?: (assets: Asset[]) => void) => {
             setSelectedAssetIds(new Set());
             setIsSelectionMode(false);
@@ -907,12 +1003,17 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     /**
-     * Create drag and drop manager utility functions
+     * Create drag and drop manager with state and utility functions
+     * Provides complete drag and drop functionality
+     * @returns Object with drag state and management functions
      */
     const createDragAndDropManager = useCallback(() => {
         const [draggedItem, setDraggedItem] = useState<{ type: 'asset' | 'album', index: number } | null>(null);
         const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
+        /**
+         * Reset all drag state to initial values
+         */
         const resetDragState = useCallback(() => {
             setDraggedItem(null);
             setDropTargetIndex(null);
@@ -928,20 +1029,35 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     // ============================================================================
-    // CONTEXT VALUE
+    // CONTEXT VALUE CREATION
     // ============================================================================
+    
+    /**
+     * Create the context value with all gesture functionality
+     */
     const contextValue: GestureContextType = useMemo(() => ({
+        // Core gesture creation functions
         createSwipeSelectionPanResponder,
         createDragAndDropGesture,
         createSliderGestures,
         createAdvancedSliderGestures,
+        
+        // Utility manager creation functions
         createSelectionManager,
         createDragAndDropManager,
+        
+        // Position calculation utilities
         getItemAtPosition,
         getGridPositionWorklet,
+        
+        // Selection range utilities
         getAssetIndicesBetween,
+        
+        // Movement detection utilities
         hasSufficientHorizontalMovement,
         hasSignificantVerticalMovement,
+        
+        // State management functions
         resetGestureState,
         getGestureState,
     }), [
@@ -960,6 +1076,10 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
         getGestureState,
     ]);
 
+    // ============================================================================
+    // RENDER
+    // ============================================================================
+    
     return (
         <GestureContext.Provider value={contextValue}>
             {children}
