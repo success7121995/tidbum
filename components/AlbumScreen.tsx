@@ -1,17 +1,17 @@
 import AlbumWithAssets from "@/components/Album";
 import AlbumSlider from "@/components/AlbumSlider";
 import MediaLibrary from "@/components/MediaLibrary";
-import { useAlbum } from "@/constant/AlbumProvider";
 import { useSetting } from "@/constant/SettingProvider";
-import { getAlbumById } from "@/lib/db";
+import { deleteAlbum, getAlbumById, insertAssets } from "@/lib/db";
 import { getLanguageText, Language } from "@/lib/lang";
 import { type Album } from "@/types/album";
 import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useEffect, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { router } from "expo-router";
+import { useCallback, useState } from "react";
+import { ActionSheetIOS, Text, TouchableOpacity, View } from "react-native";
 
 interface AlbumScreenProps {
 	albumId: string;
@@ -36,14 +36,6 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	// ============================================================================
 	// CONTEXT
 	// ============================================================================
-	const { 
-		handleEditAlbum, 
-		handleAddAssets, 
-		handleSelectAssets, 
-		handleAlbumDeleteActionSheet,
-		refreshTrigger // Add refresh trigger
-	} = useAlbum();
-
 	const { language, theme } = useSetting();
 	const text = getLanguageText(language as Language);
 
@@ -80,20 +72,25 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	);
 
 	/**
-	 * Refetch album when refresh trigger changes (media library watcher updates)
-	 */
-	useEffect(() => {
-		if (refreshTrigger && refreshTrigger > 0) {
-			fetchAlbum();
-		}
-	}, [refreshTrigger, fetchAlbum]);
-
-	/**
 	 * Handle edit album
 	 */
 	const handleEditAlbumLocal = () => {
-		if (album && handleEditAlbum) {
-			handleEditAlbum(album, parentAlbumId);
+		if (album) {
+			const pathname = parentAlbumId 
+				? '/album/[album_id]/edit'
+				: '/album/[album_id]/edit';
+			
+			const params = {
+				album_id: album.album_id || '',
+				name: album.name,
+				description: album.description || '',
+				cover_asset_id: album.cover_asset_id || '',
+			};
+
+			router.push({
+				pathname,
+				params,
+			});
 		}
 	};
 
@@ -101,11 +98,25 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	 * Handle add assets
 	 */
 	const handleAddAssetsLocal = () => {
-		if (handleAddAssets) {
-			handleAddAssets(albumId, parentAlbumId, () => {
+		ActionSheetIOS.showActionSheetWithOptions({
+			message: text.addMediaOrNewFolder,
+			options: [text.addMedia, text.addNewFolder, text.cancel],
+			cancelButtonIndex: 2,
+		}, (selectedIndex) => {
+			if (selectedIndex === 0) {
+				// Open media library
 				setIsMediaLibraryOpen(true);
-			});
-		}
+			} else if (selectedIndex === 1) {
+				if (parentAlbumId) {
+					router.push({
+						pathname: '/album/[album_id]/create-sub-album',
+						params: { album_id: parentAlbumId }
+					});
+				} else {
+					router.push('/album/create');
+				}
+			}
+		});
 	};
 
 	/**
@@ -113,8 +124,11 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	 * @param assets - Array of assets to insert
 	 */
 	const handleSelectAssetsLocal = async (assets: Asset[]) => {
-		if (handleSelectAssets) {
-			await handleSelectAssets(albumId, assets, fetchAlbum);
+		try {
+			await insertAssets(albumId, assets);
+			fetchAlbum();
+		} catch (error) {
+			console.error('Error inserting assets:', error);
 		}
 	};
 
@@ -181,11 +195,21 @@ const AlbumScreen = ({ albumId, parentAlbumId }: AlbumScreenProps) => {
 	 * Handle album delete
 	 */
 	const handleAlbumDeleteLocal = () => {
-		if (handleAlbumDeleteActionSheet) {
-			handleAlbumDeleteActionSheet(albumId, () => {
-				// This will be handled by the provider's handleAlbumDelete
-			});
-		}
+		ActionSheetIOS.showActionSheetWithOptions({
+			message: 'Are you sure you want to delete this album? This action cannot be undone.',
+			options: ['Delete', 'Cancel'],
+			destructiveButtonIndex: 0,
+			cancelButtonIndex: 1,
+		}, async (selectedIndex) => {
+			if (selectedIndex === 0) {
+				try {
+					await deleteAlbum(albumId);
+					router.back();
+				} catch (error) {
+					console.error('Error deleting album:', error);
+				}
+			}
+		});
 	};
 
 	// ============================================================================

@@ -1,3 +1,4 @@
+import { useGesture } from "@/constant/GestureProvider";
 import { useSetting } from "@/constant/SettingProvider";
 import { deleteAsset, getSettings, updateAsset, updateSettings } from "@/lib/db";
 import { getLanguageText, Language } from "@/lib/lang";
@@ -7,9 +8,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActionSheetIOS, Dimensions, Image, Modal, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import { GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
-    runOnJS,
     useAnimatedStyle,
     useSharedValue,
     withSpring
@@ -235,97 +235,49 @@ const AlbumSlider = ({
     }, [onClose]);
 
     // ============================================================================
+    // GESTURE PROVIDER
+    // ============================================================================
+    const { createAdvancedSliderGestures } = useGesture();
+
+    // ============================================================================
     // GESTURE HANDLERS
     // ============================================================================
 
     /**
-     * Handle pan
+     * Create slider gestures using advanced gesture provider
      */
-    const panGesture = Gesture.Pan()
-        .onUpdate((event) => {
-            if (scale.value <= 1) {
-                // Horizontal pan for navigation when not zoomed
-                translateX.value = event.translationX - currentIndex.value * ITEM_WIDTH;
-            } else {
-                // Vertical pan for moving zoomed image
-                translateY.value = savedTranslateY.value + event.translationY;
-            }
-        })
-        .onEnd((event) => {
-            if (scale.value <= 1) {
-                const velocity = event.velocityX;
-                const translation = event.translationX;
-        
-                let targetIndex = currentIndex.value;
-                if (Math.abs(translation) > ITEM_WIDTH * 0.3 || Math.abs(velocity) > 500) {
-                    if (translation > 0 || velocity > 0) {
-                        targetIndex = Math.max(0, currentIndex.value - 1);
-                    } else {
-                        targetIndex = Math.min(displayAssets.length - 1, currentIndex.value + 1);
-                    }
-                } else {
-                }
-        
-                translateX.value = withSpring(-targetIndex * ITEM_WIDTH, {
-                    damping: 20,
-                    stiffness: 200,
-                });
-        
-                currentIndex.value = targetIndex;
-        
-                runOnJS(setCurrentIndexState)(targetIndex);
+    const composedGesture = useMemo(() => {
+        const gestureConfig = {
+            numColumns: 1,
+            itemSize: ITEM_WIDTH,
+            gap: 0,
+            offsetY: 0,
+            offsetX: 0,
+            scrollOffsetX: 0,
+            scrollOffsetY: 0,
+            componentType: 'slider' as const,
+            itemWidth: ITEM_WIDTH,
+            maxScale: 3,
+            minScale: 1,
+        };
 
-                if (onAssetChange) {
-                    runOnJS(onAssetChange)(targetIndex);
-                }
-            } else {
-                savedTranslateY.value = translateY.value;
+        return createAdvancedSliderGestures(
+            gestureConfig,
+            displayAssets,
+            {
+                translateX,
+                translateY,
+                scale,
+                currentIndex,
+                savedScale,
+                savedTranslateY,
+            },
+            {
+                onIndexChange: setCurrentIndexState,
+                onAssetChange,
             }
-        });
-        
-
-    /**
-     * Handle pinch
-     */
-    const pinchGesture = Gesture.Pinch()
-        .onUpdate((event) => {
-            scale.value = savedScale.value * event.scale;
-        })
-        .onEnd(() => {
-            savedScale.value = scale.value;
-            if (scale.value < 1) {
-                scale.value = withSpring(1);
-                savedScale.value = 1;
-            } else if (scale.value > 3) {
-                scale.value = withSpring(3);
-                savedScale.value = 3;
-            }
-        });
-
-    /**
-     * Handle double tap
-     */
-    const doubleTapGesture = Gesture.Tap()
-        .numberOfTaps(2)
-        .onStart(() => {
-            if (scale.value > 1) {
-                scale.value = withSpring(1);
-                savedScale.value = 1;
-                translateY.value = withSpring(0);
-                savedTranslateY.value = 0;
-            } else {
-                scale.value = withSpring(2);
-                savedScale.value = 2;
-            }
-        });
-
-    /**
-     * Compose gesture
-     */
-    const composedGesture = Gesture.Simultaneous(
-        Gesture.Simultaneous(panGesture, pinchGesture),
-        doubleTapGesture
-    );
+        );
+    }, [displayAssets, createAdvancedSliderGestures, ITEM_WIDTH, translateX, translateY, scale, currentIndex, savedScale, savedTranslateY, onAssetChange]);
 
     // ============================================================================
     // ANIMATED STYLES

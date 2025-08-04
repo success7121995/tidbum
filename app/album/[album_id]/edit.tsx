@@ -1,19 +1,19 @@
 import AlbumForm from "@/components/AlbumForm";
+import { useAlbumForm } from "@/constant/AlbumFormProvider";
 import { useSetting } from "@/constant/SettingProvider";
-import { getAlbumById, updateAlbum } from "@/lib/db";
-import { getLanguageText, Language } from "@/lib/lang";
-import { CreateAlbumFormData } from "@/lib/schema";
+import { getAlbumById } from "@/lib/db";
+import { Language } from "@/lib/lang";
 import { type Album } from "@/types/album";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
 const AlbumEditScreen = () => {
     const { album_id } = useLocalSearchParams();
     const [album, setAlbum] = useState<Album | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const { language, theme } = useSetting();
-    const text = getLanguageText(language as Language);
+    const { isSubmitting, handleUpdateAlbum, handleCancel, getText } = useAlbumForm();
+    const text = getText(language as Language);
 
     // ============================================================================
     // HANDLERS
@@ -34,40 +34,13 @@ const AlbumEditScreen = () => {
     );
 
     /**
-     * Handle form submission
+     * Handle form submission with album ID and album data
      */
-    const handleSubmit = async (data: CreateAlbumFormData) => {
-        setIsSubmitting(true);
-        try {
-            if (!album_id) {
-                throw new Error('Album ID is required');
-            }
-
-            const updateData = {
-                name: data.name,
-                description: data.description,
-                cover_asset_id: album?.cover_asset_id,
-                parent_album_id: album?.parent_album_id,
-            };
-
-            await updateAlbum(album_id as string, updateData);
-
-            // Navigate back - AlbumScreen will refresh data on focus
-            router.back();
-        } catch (error) {
-            console.error('Error updating album:', error);
-            Alert.alert(text.error, text.failedToSaveAlbum);
-            throw error;
-        } finally {
-            setIsSubmitting(false);
+    const handleSubmit = async (data: any) => {
+        if (!album_id) {
+            throw new Error('Album ID is required');
         }
-    };
-
-    /**
-     * Handle cancel button press
-     */
-    const handleCancel = () => {
-        router.back();
+        await handleUpdateAlbum(data, album_id as string, album);
     };
 
     // ============================================================================

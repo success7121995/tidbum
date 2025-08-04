@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
-	Alert,
 	KeyboardAvoidingView,
 	Platform,
 	Text,
@@ -30,6 +29,9 @@ const AlbumForm = ({
 	const { language, theme } = useSetting();
 	const text = getLanguageText(language as Language);
 
+	// ============================================================================
+	// FORM
+	// ============================================================================
 	const {
 		control,
 		handleSubmit,
@@ -45,15 +47,27 @@ const AlbumForm = ({
 		mode: 'onChange',
 	});
 
+	// ============================================================================
+	// HANDLERS
+	// ============================================================================
+	/**
+	 * Handle form submit
+	 * @param data - Form data
+	 */
 	const handleFormSubmit = async (data: AlbumFormData) => {
 		try {
 			await onSubmit(data);
 			reset();
 		} catch (error) {
-			Alert.alert(text.error, text.failedToSaveAlbum);
+			// Error handling is now done in the provider
+			// Just re-throw to let the provider handle it
+			throw error;
 		}
 	};
 
+	// ============================================================================
+	// RENDERERS
+	// ============================================================================
 	return (
 		<KeyboardAvoidingView 
 			className="flex-1"

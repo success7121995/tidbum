@@ -11,6 +11,7 @@ import { useSetting } from "../constant/SettingProvider";
 import { getLanguageText, Language } from "../lib/lang";
 import { type Album } from "../types/album";
 import AlbumCard from "./AlbumCard";
+import AssetGrid from "./AssetGrid";
 
 interface AlbumProps {
     album: Album;
@@ -216,93 +217,6 @@ const SubAlbumsSection = ({
                 />
             )}
         </View>
-    );
-};
-
-// ============================================================================
-// ASSETS GRID COMPONENT
-// ============================================================================
-const AssetsGrid = ({ 
-    assets, 
-    renderAssetItem, 
-    keyExtractor, 
-    onScroll, 
-    onScrollBeginDrag, 
-    onScrollEndDrag, 
-    onMomentumScrollBegin, 
-    onMomentumScrollEnd, 
-    swipeSelectionPanResponder, 
-    text, 
-    theme,
-    isSelectionMode = false
-}: {
-    assets: Asset[];
-    renderAssetItem: any;
-    keyExtractor: (item: Asset) => string;
-    onScroll: (event: any) => void;
-    onScrollBeginDrag: () => void;
-    onScrollEndDrag: () => void;
-    onMomentumScrollBegin: () => void;
-    onMomentumScrollEnd: () => void;
-    swipeSelectionPanResponder: any;
-    text: any;
-    theme: string;
-    isSelectionMode?: boolean;
-}) => {
-    const flatListRef = useRef<FlatList>(null);
-
-    if (!assets || assets.length === 0) {
-        return (
-            <View className="flex-1 items-center justify-center px-4">
-                <Feather name="image" size={48} color={theme === 'dark' ? '#cbd5e1' : '#64748b'} />
-                <Text className={`${theme === 'dark' ? 'text-dark-text-secondary' : 'text-light-text-secondary'} text-center mt-4`}>
-                    {text.noMediaInAlbum}
-                </Text>
-                <Text className={`${theme === 'dark' ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'} text-center text-sm mt-2`}>
-                    {text.tapToAdd}
-                </Text>
-            </View>
-        );
-    }
-
-    return (
-        <>
-            <View className="px-4 mb-3">
-                <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
-                    {text.media} ({assets.length})
-                </Text>
-            </View>
-            <View 
-                className="flex-1"
-                {...(swipeSelectionPanResponder?.panHandlers || {})}
-            >
-                <FlatList
-                    ref={flatListRef}
-                    className="flex-1"
-                    data={assets}
-                    numColumns={numColumns}
-                    renderItem={renderAssetItem}
-                    keyExtractor={keyExtractor}
-                    showsVerticalScrollIndicator={false}
-                    removeClippedSubviews={true}
-                    maxToRenderPerBatch={20}
-                    windowSize={10}
-                    initialNumToRender={20}
-                    columnWrapperStyle={{ gap: gap }}
-                    contentContainerStyle={{ 
-                        gap: gap, 
-                        paddingHorizontal: gap,
-                        paddingBottom: isSelectionMode ? 80 : 20
-                    }}
-                    scrollEventThrottle={16}
-                    onScroll={onScroll}
-                    onScrollBeginDrag={onScrollBeginDrag}
-                    onScrollEndDrag={onScrollEndDrag}
-                    onMomentumScrollBegin={onMomentumScrollBegin}
-                    onMomentumScrollEnd={onMomentumScrollEnd}
-                />
-            </View>
-        </>
     );
 };
 
@@ -1049,7 +963,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             theme={theme}
                         />
                         
-                        <AssetsGrid 
+                        <AssetGrid 
                             assets={assets}
                             renderAssetItem={renderAssetItem}
                             keyExtractor={keyExtractor}
@@ -1062,6 +976,8 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             text={text}
                             theme={theme}
                             isSelectionMode={true}
+                            numColumns={numColumns}
+                            gap={gap}
                         />
                     </View>
 
@@ -1090,7 +1006,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             theme={theme}
                         />
                         
-                        <AssetsGrid 
+                        <AssetGrid 
                             assets={assets}
                             renderAssetItem={renderAssetItem}
                             keyExtractor={keyExtractor}
@@ -1103,6 +1019,8 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             text={text}
                             theme={theme}
                             isSelectionMode={false}
+                            numColumns={numColumns}
+                            gap={gap}
                         />
                     </Animated.View>
                 </GestureDetector>

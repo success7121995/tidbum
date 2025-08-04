@@ -1,20 +1,19 @@
 import AlbumForm from '@/components/AlbumForm';
+import { useAlbumForm } from '@/constant/AlbumFormProvider';
 import { useSetting } from '@/constant/SettingProvider';
-import { createAlbum } from '@/lib/db';
-import { getLanguageText, Language } from '@/lib/lang';
-import { CreateAlbumFormData } from '@/lib/schema';
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Language } from '@/lib/lang';
+import { useLocalSearchParams } from 'expo-router';
+import React from 'react';
+import { ScrollView, Text, View } from 'react-native';
 
 const CreateAlbumScreen = () => {
 	// ============================================================================
 	// STATE
 	// ============================================================================
-	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { album_id } = useLocalSearchParams();
 	const { language, theme } = useSetting();
-	const text = getLanguageText(language as Language);
+	const { isSubmitting, handleCreateSubAlbum, handleCancel, getText } = useAlbumForm();
+	const text = getText(language as Language);
 
 	// The album_id from the route is the parent album ID
 	const parentAlbumId = album_id as string;
@@ -22,40 +21,11 @@ const CreateAlbumScreen = () => {
 	// ============================================================================
 	// HANDLERS
 	// ============================================================================
-
-    /**
-     * Handle form submission
-     * @param data 
-     */
-	const handleSubmit = async (data: CreateAlbumFormData) => {
-		setIsSubmitting(true);
-		try {
-
-			const subAlbumId = await createAlbum({
-				name: data.name,
-				description: data.description,
-				parent_album_id: parentAlbumId,
-			});
-
-			if (!subAlbumId) {
-				throw new Error('Failed to create album');
-			}
-
-			// Go back to parent album - the album will refresh automatically via useFocusEffect
-			router.back();
-		} catch (error) {
-			Alert.alert(text.error, text.failedToCreateAlbum);
-			throw error; // Re-throw to let the form handle the error
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
 	/**
-	 * Handle cancel button press
+	 * Handle form submission with parent album ID
 	 */
-	const handleCancel = () => {
-		router.back();
+	const handleSubmit = async (data: any) => {
+		await handleCreateSubAlbum(data, parentAlbumId);
 	};
 
 	// ============================================================================

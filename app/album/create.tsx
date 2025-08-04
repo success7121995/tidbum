@@ -1,55 +1,17 @@
-import { getLanguageText, Language } from '@/lib/lang';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Language } from '@/lib/lang';
+import React from 'react';
+import { ScrollView, Text, View } from 'react-native';
 import AlbumForm from '../../components/AlbumForm';
+import { useAlbumForm } from '../../constant/AlbumFormProvider';
 import { useSetting } from '../../constant/SettingProvider';
-import { createAlbum } from '../../lib/db';
-import { CreateAlbumFormData } from '../../lib/schema';
 
 const CreateAlbumScreen = () => {
 	// ============================================================================
 	// STATE
 	// ============================================================================
-	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { language, theme } = useSetting();
-	const text = getLanguageText(language as Language);
-	// ============================================================================
-	// HANDLERS
-	// ============================================================================
-
-    /**
-     * Handle form submission
-     * @param data 
-     */
-	const handleSubmit = async (data: CreateAlbumFormData) => {
-		setIsSubmitting(true);
-		try {
-			const albumId = await createAlbum({
-				name: data.name,
-				description: data.description,
-			});
-
-			if (!albumId) {
-				throw new Error('Failed to create album');
-			}
-
-			// Go back to album list - the list will refresh automatically via useFocusEffect
-			router.back();
-		} catch (error) {
-			Alert.alert(text.error, text.failedToCreateAlbum);
-			throw error;
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
-	/**
-	 * Handle cancel button press
-	 */
-	const handleCancel = () => {
-		router.back();
-	};
+	const { isSubmitting, handleCreateAlbum, handleCancel, getText } = useAlbumForm();
+	const text = getText(language as Language);
 
 	// ============================================================================
 	// RENDERERS
@@ -69,7 +31,7 @@ const CreateAlbumScreen = () => {
 
 				{/* Form */}
 				<AlbumForm
-					onSubmit={handleSubmit}
+					onSubmit={handleCreateAlbum}
 					onCancel={handleCancel}
 					isSubmitting={isSubmitting}
 				/>

@@ -1,4 +1,4 @@
-import { AlbumProvider, SettingProvider } from "@/constant";
+import { AlbumFormProvider, GestureProvider, SettingProvider } from "@/constant";
 import { useSetting } from "@/constant/SettingProvider";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -27,9 +27,11 @@ export default function RootLayout() {
 	return (
 		<GestureHandlerRootView style={{ flex: 1 }}>
 			<SettingProvider>
-				<AlbumProvider>
-					<AppContent />
-				</AlbumProvider>
+				<AlbumFormProvider>
+					<GestureProvider>
+						<AppContent />
+					</GestureProvider>
+				</AlbumFormProvider>
 			</SettingProvider>
 		</GestureHandlerRootView>
 	);
