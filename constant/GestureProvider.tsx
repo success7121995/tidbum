@@ -2,7 +2,7 @@ import { Asset } from "@/types/asset";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { GestureResponderEvent, PanResponder, PanResponderGestureState } from "react-native";
 import { Gesture } from "react-native-gesture-handler";
-import { runOnJS, withSpring } from "react-native-reanimated";
+import { runOnJS, useSharedValue, withSpring } from "react-native-reanimated";
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -207,6 +207,17 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
         rowToggleStates: new Map(),
         currentRow: null,
     });
+
+    // ============================================================================
+    // DRAG AND DROP SHARED VALUES
+    // ============================================================================
+    
+    /**
+     * Shared values for drag and drop state that can be accessed from worklets
+     */
+    const dragStartIndex = useSharedValue(-1);
+    const dragStartType = useSharedValue<'asset' | 'album' | null>(null);
+    const dragLastDropTarget = useSharedValue(-1);
 
     // ============================================================================
     // POSITION CALCULATION UTILITIES
@@ -624,9 +635,15 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
             onDragEnd: (fromIndex: number, toIndex: number, type: 'asset' | 'album') => void;
         }
     ) => {
-        if (isSelectionMode) return null;
+        if (isSelectionMode) {
+            return null;
+        }
 
         return Gesture.Pan()
+            .minDistance(5) // Require minimum distance to start drag
+            .onBegin(() => {
+                'worklet';
+            })
             /**
              * Handle drag start
              * Determine what type of item is being dragged and its index
@@ -646,13 +663,19 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                     const screenWidth = config.screenWidth || 375;
                     
                     const albumIndex = Math.floor(touchY / albumItemHeight) * albumItemsPerRow + Math.floor(touchX / (screenWidth / albumItemsPerRow));
+                    
                     if (albumIndex >= 0 && albumIndex < subAlbums.length) {
+                        dragStartIndex.value = albumIndex;
+                        dragStartType.value = 'album';
                         runOnJS(callbacks.onDragStart)('album', albumIndex);
                     }
                 } else {
                     // Handle asset drag
                     const assetIndex = getGridPositionWorklet(touchX, touchY - 200, config, assets.length);
+                    
                     if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length) {
+                        dragStartIndex.value = assetIndex;
+                        dragStartType.value = 'asset';
                         runOnJS(callbacks.onDragStart)('asset', assetIndex);
                     }
                 }
@@ -666,7 +689,7 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                 'worklet';
                 const currentX = event.x;
                 const currentY = event.y;
-                
+
                 const albumSectionHeight = config.albumSectionHeight || (subAlbums.length > 0 ? 100 : 0);
                 const isInAlbumSection = currentY < albumSectionHeight;
                 
@@ -677,17 +700,23 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                     const screenWidth = config.screenWidth || 375;
                     
                     const albumIndex = Math.floor(currentY / albumItemHeight) * albumItemsPerRow + Math.floor(currentX / (screenWidth / albumItemsPerRow));
+                    
                     if (albumIndex >= 0 && albumIndex < subAlbums.length) {
+                        dragLastDropTarget.value = albumIndex;
                         runOnJS(callbacks.onDragUpdate)('album', albumIndex);
                     } else {
+                        dragLastDropTarget.value = -1;
                         runOnJS(callbacks.onDragUpdate)('album', null);
                     }
                 } else {
                     // Update asset drop target
                     const assetIndex = getGridPositionWorklet(currentX, currentY - 200, config, assets.length);
+                    
                     if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length) {
+                        dragLastDropTarget.value = assetIndex;
                         runOnJS(callbacks.onDragUpdate)('asset', assetIndex);
                     } else {
+                        dragLastDropTarget.value = -1;
                         runOnJS(callbacks.onDragUpdate)('asset', null);
                     }
                 }
@@ -699,31 +728,23 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
              */
             .onEnd((event) => {
                 'worklet';
-                const dropX = event.x;
-                const dropY = event.y;
                 
-                const albumSectionHeight = config.albumSectionHeight || (subAlbums.length > 0 ? 100 : 0);
-                const isInAlbumSection = dropY < albumSectionHeight;
+                // Use the last drop target from onDragUpdate instead of recalculating
+                const toIndex = dragLastDropTarget.value;
+                const fromIndex = dragStartIndex.value;
+                const dragType = dragStartType.value;
+            
+                // Always call onDragEnd to reset state, even if no valid drop target
+                runOnJS(callbacks.onDragEnd)(
+                    fromIndex >= 0 ? fromIndex : 0, 
+                    toIndex >= 0 ? toIndex : (fromIndex >= 0 ? fromIndex : 0), 
+                    dragType || 'asset'
+                );
                 
-                if (isInAlbumSection && subAlbums.length > 0) {
-                    // Complete album drop
-                    const albumItemHeight = config.albumItemHeight || 120;
-                    const albumItemsPerRow = config.albumItemsPerRow || 3;
-                    const screenWidth = config.screenWidth || 375;
-                    
-                    const albumIndex = Math.floor(dropY / albumItemHeight) * albumItemsPerRow + Math.floor(dropX / (screenWidth / albumItemsPerRow));
-                    if (albumIndex >= 0 && albumIndex < subAlbums.length) {
-                        // Note: You'll need to track the original index from onStart
-                        runOnJS(callbacks.onDragEnd)(0, albumIndex, 'album');
-                    }
-                } else {
-                    // Complete asset drop
-                    const assetIndex = getGridPositionWorklet(dropX, dropY - 200, config, assets.length);
-                    if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length) {
-                        // Note: You'll need to track the original index from onStart
-                        runOnJS(callbacks.onDragEnd)(0, assetIndex, 'asset');
-                    }
-                }
+                // Reset tracking variables AFTER using them
+                dragStartIndex.value = -1;
+                dragStartType.value = null;
+                dragLastDropTarget.value = -1;
             });
     }, [getGridPositionWorklet]);
 

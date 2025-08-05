@@ -28,7 +28,7 @@ interface SubAlbumsSectionProps {
 // ============================================================================
 // SUB-ALBUMS SECTION COMPONENT
 // ============================================================================
-const SubAlbumsSection = ({ 
+const SubAlbumsSection = React.memo(({ 
     subAlbums, 
     isExpanded, 
     onToggleExpand,
@@ -58,24 +58,45 @@ const SubAlbumsSection = ({
                 </TouchableOpacity>
             </View>
             {isExpanded && (
-                <FlatList
-                    ref={albumListRef}
-                    data={subAlbums}
-                    renderItem={renderSubAlbumItem}
-                    keyExtractor={(item) => item.album_id || ''}
-                    horizontal={true}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingRight: 20 }}
-                    removeClippedSubviews={false}
-                    getItemLayout={(data, index) => ({
-                        length: isTablet ? 160 : 140,
-                        offset: (isTablet ? 160 : 140) * index,
-                        index,
-                    })}
-                />
+                <View className="relative">
+                    <FlatList
+                        ref={albumListRef}
+                        data={subAlbums}
+                        renderItem={renderSubAlbumItem}
+                        keyExtractor={(item) => item.album_id || ''}
+                        horizontal={true}
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingRight: 20 }}
+                        removeClippedSubviews={false}
+                        getItemLayout={(data, index) => ({
+                            length: isTablet ? 160 : 140,
+                            offset: (isTablet ? 160 : 140) * index,
+                            index,
+                        })}
+                        // Performance optimizations
+                        maxToRenderPerBatch={5}
+                        windowSize={5}
+                        initialNumToRender={3}
+                        updateCellsBatchingPeriod={50}
+                        disableVirtualization={false}
+                        // Disable scroll when dragging
+                        scrollEnabled={!draggedItem || draggedItem.type !== 'album'}
+                    />
+                    
+                    {/* Debug overlay for drag state */}
+                    {__DEV__ && draggedItem && draggedItem.type === 'album' && (
+                        <View className="absolute inset-0 bg-red-500 bg-opacity-20 pointer-events-none">
+                            <Text className="text-white text-xs p-2">
+                                Dragging album {draggedItem.index}
+                            </Text>
+                        </View>
+                    )}
+                </View>
             )}
         </View>
     );
-};
+});
+
+SubAlbumsSection.displayName = 'SubAlbumsSection';
 
 export default SubAlbumsSection;   

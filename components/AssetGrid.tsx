@@ -20,6 +20,7 @@ interface AssetGridProps {
     gap: number;
     emptyMessage?: string;
     emptySubMessage?: string;
+    draggedItem?: { type: 'asset' | 'album', index: number } | null;
 }
 
 const AssetGrid = ({ 
@@ -37,8 +38,9 @@ const AssetGrid = ({
     isSelectionMode = false,
     numColumns,
     gap,
-    emptyMessage = "No media in album",
-    emptySubMessage = "Tap to add"
+    emptyMessage = text.noMediaYet,
+    emptySubMessage = text.tapToAdd,
+    draggedItem
 }: AssetGridProps) => {
     const flatListRef = useRef<FlatList>(null);
 
@@ -64,7 +66,7 @@ const AssetGrid = ({
                 </Text>
             </View>
             <View 
-                className="flex-1"
+                className="flex-1 relative"
                 {...(swipeSelectionPanResponder?.panHandlers || {})}
             >
                 <FlatList
@@ -91,7 +93,10 @@ const AssetGrid = ({
                     onScrollEndDrag={onScrollEndDrag}
                     onMomentumScrollBegin={onMomentumScrollBegin}
                     onMomentumScrollEnd={onMomentumScrollEnd}
+                    // Disable scroll when dragging assets
+                    scrollEnabled={!draggedItem || draggedItem.type !== 'asset'}
                 />
+            
             </View>
         </>
     );

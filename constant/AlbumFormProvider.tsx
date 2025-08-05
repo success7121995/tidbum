@@ -97,7 +97,7 @@ const AlbumFormProvider = ({ children }: { children: React.ReactNode }) => {
             const updateData = {
                 name: data.name,
                 description: data.description,
-                cover_asset_id: album?.cover_asset_id,
+                cover_uri: album?.cover_uri,
                 parent_album_id: album?.parent_album_id,
             };
 

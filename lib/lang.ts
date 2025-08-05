@@ -123,6 +123,20 @@ export const getLanguageText = (language: Language) => {
 				addCaption: "新增說明...",
 
                 //===============================================
+                // COVER IMAGE MODAL
+                //===============================================
+                // Cover Image Selection
+				selectedCoverImage: "已選擇",
+				selectCoverImage: "選擇封面圖片",
+				noPhotosAvailable: "沒有可用的照片",
+				noPhotosAvailableMessage: "此相簿中沒有照片可以設為封面圖片。",
+				changeCover: "變更封面",
+				removeCover: "移除封面",
+				setCover: "設定封面",
+				noImageSelected: "未選擇圖片",
+				coverImageSelected: "已選擇",
+
+                //===============================================
                 // SETTINGS & PREFERENCES
                 //===============================================
                 // Settings Navigation
@@ -286,6 +300,20 @@ export const getLanguageText = (language: Language) => {
                 // Caption Management
 				editCaption: "编辑说明",
 				addCaption: "添加说明...",
+
+                //===============================================
+                // COVER IMAGE MODAL
+                //===============================================
+                // Cover Image Selection
+				selectedCoverImage: "已选择",
+				selectCoverImage: "选择封面图片",
+				noPhotosAvailable: "没有可用的照片",
+				noPhotosAvailableMessage: "此相簿中没有照片可以设为封面图片。",
+				changeCover: "变更封面",
+				removeCover: "移除封面",
+				setCover: "设置封面",
+				noImageSelected: "未选择图片",
+				coverImageSelected: "已选择",
 
                 //===============================================
                 // SETTINGS & PREFERENCES
@@ -452,6 +480,20 @@ export const getLanguageText = (language: Language) => {
                 // Caption Management
 				editCaption: "Edit Caption",
 				addCaption: "Add a caption...",
+
+                //===============================================
+                // COVER IMAGE MODAL
+                //===============================================
+                // Cover Image Selection
+				selectedCoverImage: "Selected",
+				selectCoverImage: "Select Cover Image",
+				noPhotosAvailable: "No photos available",
+				noPhotosAvailableMessage: "There are no photos in this album to set as the cover image.",
+				changeCover: "Change Cover",
+				removeCover: "Remove Cover",
+				setCover: "Set Cover",
+				noImageSelected: "No image selected",
+				coverImageSelected: "Selected",
 
                 //===============================================
                 // SETTINGS & PREFERENCES

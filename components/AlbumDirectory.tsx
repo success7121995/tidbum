@@ -141,7 +141,7 @@ const AlbumDirectory = ({
                     <View className={`${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} rounded-xl overflow-hidden`}>
                         {/* Album Cover */}
                         <View className="aspect-square relative">
-                            {item.cover_asset_id ? (
+                            {item.cover_uri ? (
                                 <View className="w-full h-full bg-gray-200 dark:bg-gray-700 rounded-t-xl" />
                             ) : (
                                 <View className={`w-full h-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded-t-xl flex items-center justify-center`}>

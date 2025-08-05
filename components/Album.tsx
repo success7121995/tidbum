@@ -1,4 +1,4 @@
-import { deleteSelectedAssets as deleteSelectedAssetsFromDb, getAlbumById } from "@/lib/db";
+import { deleteSelectedAssets as deleteSelectedAssetsFromDb, getAlbumById, swapAlbumOrder, swapAssetOrder } from "@/lib/db";
 import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -34,6 +34,70 @@ const isTablet = screenWidth >= 768;
 const numColumns = isTablet ? 9 : 5;
 const gap = 2;
 const itemSize = (screenWidth - (gap * (numColumns + 1))) / numColumns;
+
+// ============================================================================
+// OPTIMIZED SUB-ALBUM ITEM COMPONENT
+// ============================================================================
+interface SubAlbumItemProps {
+    subAlbum: Album;
+    index: number;
+    isCurrentlyDragged: boolean;
+    isDropTarget: boolean;
+    onAlbumDelete: (albumId: string) => void;
+}
+
+const SubAlbumItem = React.memo(({ 
+    subAlbum, 
+    index, 
+    isCurrentlyDragged, 
+    isDropTarget, 
+    onAlbumDelete 
+}: SubAlbumItemProps) => {
+    return (
+        <View className="px-1" style={{ width: isTablet ? 140 : 120 }}>
+            <Animated.View style={{ height: 'auto' }}>
+                <View style={{
+                    opacity: isCurrentlyDragged ? 0.3 : 1,
+                    borderWidth: isDropTarget ? 2 : 0,
+                    borderColor: isDropTarget ? '#3B82F6' : 'transparent',
+                    borderRadius: isDropTarget ? 8 : 0,
+                }}>
+                    <AlbumCard
+                        album={subAlbum}
+                        onDelete={onAlbumDelete}
+                        onPress={(album) => {
+                            // Navigate to the album
+                            try {
+                                const { router } = require("expo-router");
+                                router.push(`/album/${album.album_id}`);
+                            } catch (error) {
+                                console.warn('Navigation not available in this context');
+                            }
+                        }}
+                    />
+
+                    {isDropTarget && (
+                        <View className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-lg items-center justify-center">
+                            <View className="bg-blue-500 rounded-full p-2">
+                                <Feather name="arrow-down" size={16} color="white" />
+                            </View>
+                        </View>
+                    )}
+
+                    {isCurrentlyDragged && (
+                        <View className="absolute bottom-2 left-2">
+                            <View className="bg-blue-500 bg-opacity-80 rounded-full p-1">
+                                <Feather name="move" size={12} color="white" />
+                            </View>
+                        </View>
+                    )}
+                </View>
+            </Animated.View>
+        </View>
+    );
+});
+
+SubAlbumItem.displayName = 'SubAlbumItem';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -83,6 +147,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     // ============================================================================
     // SELECTION MANAGEMENT FUNCTIONS
     // ============================================================================
+    /**
+     * Enter the selection mode
+     * @param assetId - The ID of the asset to select
+     */
     const enterSelectionMode = useCallback((assetId: string) => {
         setIsSelectionMode(true);
         setSelectedAssetIds(new Set([assetId]));
@@ -95,6 +163,9 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         }
     }, [assets, onSelectionChange]);
 
+    /**
+     * Exit the selection mode
+     */
     const exitSelectionMode = useCallback(() => {
         setIsSelectionMode(false);
         setSelectedAssetIds(new Set());
@@ -104,6 +175,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         }, 0);
     }, [onSelectionChange]);
 
+    /**
+     * Toggle the selection of an asset
+     * @param assetId - The ID of the asset to toggle
+     */
     const toggleAssetSelection = useCallback((assetId: string) => {
         if (!isSelectionMode) return;
 
@@ -125,6 +200,9 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         });
     }, [isSelectionMode, assets, onSelectionChange]);
 
+    /**
+     * Clear the selection of all assets
+     */
     const clearSelection = useCallback(() => {
         setSelectedAssetIds(new Set());
         setIsSelectionMode(false);
@@ -133,14 +211,6 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             onSelectionChange?.([]);
         }, 0);
     }, [onSelectionChange]);
-
-    // ============================================================================
-    // DRAG AND DROP MANAGEMENT FUNCTIONS
-    // ============================================================================
-    const resetDragState = useCallback(() => {
-        setDraggedItem(null);
-        setDropTargetIndex(null);
-    }, []);
 
     // ============================================================================
     // EVENT HANDLERS
@@ -239,21 +309,36 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
      * @param fromIndex - The index of the asset to move
      * @param toIndex - The index to move the asset to
      */
-    const reorderAssets = useCallback((fromIndex: number, toIndex: number) => {
-        if (fromIndex === toIndex) return;
-        
+    const reorderAssets = useCallback(async (fromIndex: number, toIndex: number) => {
+        if (fromIndex === toIndex) return;  
+
         setAssets(prevAssets => {
             const newAssets = [...prevAssets];
-            const [draggedAsset] = newAssets.splice(fromIndex, 1);
-            newAssets.splice(toIndex, 0, draggedAsset);
             
+            // Get the assets to swap from the original array BEFORE swapping
+            const assetFrom = prevAssets[fromIndex];
+            const assetTo = prevAssets[toIndex];
+            
+            // Swap the assets at the two positions
+            const temp = newAssets[fromIndex];
+            newAssets[fromIndex] = newAssets[toIndex];
+            newAssets[toIndex] = temp;
+
             pendingAssetsUpdate.current = newAssets;
             needsParentUpdate.current = true;
+
+            // Use swapAssetOrder to correctly exchange the order indices
+            swapAssetOrder(assetFrom.id, assetTo.id).then(() => {
+                // Refresh the album data to ensure UI reflects the changes
+                refreshAlbumData();
+            }).catch((error: any) => {
+                console.error('Error updating asset order in database:', error);
+            });
             
             return newAssets;
         });
-        
-        setDraggedItem(prev => prev ? { ...prev, index: toIndex } : null);
+
+
     }, []);
 
     /**
@@ -261,17 +346,31 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
      * @param fromIndex - The index of the album to move
      * @param toIndex - The index to move the album to
      */
-    const reorderAlbums = useCallback((fromIndex: number, toIndex: number) => {
+    const reorderAlbums = useCallback(async (fromIndex: number, toIndex: number) => {
         if (fromIndex === toIndex) return;
         
         setSubAlbums(prevAlbums => {
             const newAlbums = [...prevAlbums];
-            const [draggedItem] = newAlbums.splice(fromIndex, 1);
-            newAlbums.splice(toIndex, 0, draggedItem);
+            
+            // Get the albums to swap from the original array BEFORE swapping
+            const albumFrom = prevAlbums[fromIndex];
+            const albumTo = prevAlbums[toIndex];
+            
+            // Swap the albums at the two positions
+            const temp = newAlbums[fromIndex];
+            newAlbums[fromIndex] = newAlbums[toIndex];
+            newAlbums[toIndex] = temp;
+            
+            // Use swapAlbumOrder to correctly exchange the order indices
+            swapAlbumOrder(albumFrom.album_id!, albumTo.album_id!).then(() => {
+                // Refresh the album data to ensure UI reflects the changes
+                refreshAlbumData();
+            }).catch((error: any) => {
+                console.error('Error updating album order in database:', error);
+            });
+            
             return newAlbums;
         });
-        
-        setDraggedItem(prev => prev ? { ...prev, index: toIndex } : null);
     }, []);
 
     // ============================================================================
@@ -292,7 +391,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             componentType: 'album' as const,
             isExpanded,
             screenWidth,
-            albumSectionHeight: subAlbums.length > 0 ? 100 : 0,
+            albumSectionHeight: subAlbums.length > 0 ? (isExpanded ? 200 : 100) : 0,
             albumItemHeight: 120,
             albumItemsPerRow: 3,
         };
@@ -307,20 +406,27 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                     draggedItemType.value = type;
                     draggedItemIndex.value = index;
                     setDraggedItem({ type, index });
+                    setDropTargetIndex(null);
                 },
                 onDragUpdate: (type: 'asset' | 'album', index: number | null) => {
                     setDropTargetIndex(index);
                 },
                 onDragEnd: (fromIndex: number, toIndex: number, type: 'asset' | 'album') => {
-                    if (type === 'album') {
-                        reorderAlbums(fromIndex, toIndex);
-                    } else {
-                        reorderAssets(fromIndex, toIndex);
-                    }
                     
+                    // Reset drag state first
                     draggedItemType.value = null;
                     draggedItemIndex.value = -1;
-                    resetDragState();
+                    setDraggedItem(null);
+                    setDropTargetIndex(null);
+                    
+                    // Then perform reordering
+                    if (fromIndex !== toIndex) {
+                        if (type === 'album') {
+                            reorderAlbums(fromIndex, toIndex);
+                        } else {
+                            reorderAssets(fromIndex, toIndex);
+                        }
+                    }
                 },
             }
         );
@@ -333,8 +439,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         scrollOffsetY, 
         createDragAndDropGesture, 
         reorderAlbums, 
-        reorderAssets,
-        resetDragState
+        reorderAssets
     ]);
 
     /**
@@ -462,71 +567,24 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
 
     /**
      * Render a sub-album item
-     * @param subAlbum - The sub-album to render
-     * @param index - The index of the sub-album
-     * @returns The rendered sub-album item
-     */
-    const SubAlbumItem = useMemo(() => {
-        return ({ subAlbum, index }: { subAlbum: Album; index: number }) => {
-            const isCurrentlyDragged = draggedItem?.type === 'album' && draggedItem.index === index;
-            const isDropTarget = dropTargetIndex === index && !isCurrentlyDragged && draggedItem?.type === 'album';
-            
-            return (
-                <View className="px-1" style={{ width: isTablet ? 140 : 120 }}>
-                    <Animated.View style={{ height: 'auto' }}>
-                        <View style={{
-                            opacity: isCurrentlyDragged ? 0.3 : 1,
-                            borderWidth: isDropTarget ? 2 : 0,
-                            borderColor: isDropTarget ? '#3B82F6' : 'transparent',
-                            borderRadius: isDropTarget ? 8 : 0,
-                        }}>
-                            <AlbumCard
-                                album={subAlbum}
-                                onDelete={handleAlbumDelete}
-                                onPress={(album) => {
-                                    // Navigate to the album
-                                    try {
-                                        const { router } = require("expo-router");
-                                        router.push(`/album/${album.album_id}`);
-                                    } catch (error) {
-                                        console.warn('Navigation not available in this context');
-                                    }
-                                }}
-                            />
-
-                            {isDropTarget && (
-                                <View className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-lg items-center justify-center">
-                                    <View className="bg-blue-500 rounded-full p-2">
-                                        <Feather name="arrow-down" size={16} color="white" />
-                                    </View>
-                                </View>
-                            )}
-
-                            {isCurrentlyDragged && (
-                                <View className="absolute bottom-2 left-2">
-                                    <View className="bg-blue-500 bg-opacity-80 rounded-full p-1">
-                                        <Feather name="move" size={12} color="white" />
-                                    </View>
-                                </View>
-                            )}
-                        </View>
-                    </Animated.View>
-                </View>
-            );
-        };
-    }, [isTablet, draggedItem, dropTargetIndex, handleAlbumDelete]);
-
-    /**
-     * Render a sub-album item
      * @param item - The sub-album to render
      * @param index - The index of the sub-album
      * @returns The rendered sub-album item
      */
-    const renderSubAlbumItem = useMemo(() => {
-        return ({ item, index }: { item: Album; index: number }) => (
-            <SubAlbumItem subAlbum={item} index={index} />
+    const renderSubAlbumItem = useCallback(({ item, index }: { item: Album; index: number }) => {
+        const isCurrentlyDragged = draggedItem?.type === 'album' && draggedItem.index === index;
+        const isDropTarget = dropTargetIndex === index && !isCurrentlyDragged && draggedItem?.type === 'album';
+        
+        return (
+            <SubAlbumItem
+                subAlbum={item}
+                index={index}
+                isCurrentlyDragged={isCurrentlyDragged}
+                isDropTarget={isDropTarget}
+                onAlbumDelete={handleAlbumDelete}
+            />
         );
-    }, [SubAlbumItem]);
+    }, [draggedItem, dropTargetIndex, handleAlbumDelete]);
 
     // ============================================================================
     // EFFECTS
@@ -535,10 +593,16 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         const currentAssets = album.assets || [];
         const prevAssets = prevAssetsRef.current;
         
+        // Check if assets have changed (count, IDs, or order)
         const assetsChanged = currentAssets.length !== prevAssets.length || 
-            currentAssets.some((asset, index) => asset.id !== prevAssets[index]?.id);
+            currentAssets.some((asset, index) => {
+                const prevAsset = prevAssets[index];
+                return !prevAsset || 
+                       asset.id !== prevAsset.id || 
+                       asset.order_index !== prevAsset.order_index;
+            });
         
-        if (assetsChanged) {
+        if (assetsChanged) {            
             setAssets(currentAssets);
             prevAssetsRef.current = currentAssets;
             
@@ -616,10 +680,8 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const refreshAlbumData = useCallback(async () => {
         if (currentAlbum.album_id) {
             try {
-                console.log('Refreshing album data for:', currentAlbum.album_id);
                 const updatedAlbum = await getAlbumById(currentAlbum.album_id);
                 if (updatedAlbum) {
-                    console.log('Updated album data:', updatedAlbum);
                     setCurrentAlbum(updatedAlbum);
                     setAssets(updatedAlbum.assets || []);
                     setSubAlbums(updatedAlbum.subAlbums || []);
@@ -668,6 +730,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             isSelectionMode={true}
                             numColumns={numColumns}
                             gap={gap}
+                            draggedItem={draggedItem}
                         />
                     </View>
 
@@ -680,23 +743,14 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             currentAlbumName={currentAlbum.name}
                             selectedAssetIds={Array.from(selectedAssetIds)}
                             onAssetsMoved={async () => {
-                                console.log('Assets moved, refreshing album data...');
                                 
-                                // Refresh the album data immediately to update totalAssets count
-                                await refreshAlbumData();
+                                // Update the assets list locally by removing selected assets
+                                const updatedAssets = assets.filter(asset => !selectedAssetIds.has(asset.id));
+                                setAssets(updatedAssets);
+                                onAssetsUpdate?.(updatedAssets);
                                 
                                 // Exit selection mode and clear selected assets
                                 exitSelectionMode();
-                                
-                                // Force a small delay to ensure state updates are processed
-                                await new Promise(resolve => setTimeout(resolve, 50));
-                                
-                                // Also update the assets list locally
-                                if (currentAlbum.album_id) {
-                                    const updatedAssets = assets.filter(asset => !selectedAssetIds.has(asset.id));
-                                    setAssets(updatedAssets);
-                                    onAssetsUpdate?.(updatedAssets);
-                                }
                             }}
                         />
                     )}
@@ -740,6 +794,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                             isSelectionMode={false}
                             numColumns={numColumns}
                             gap={gap}
+                            draggedItem={draggedItem}
                         />
                     </Animated.View>
                 </GestureDetector>

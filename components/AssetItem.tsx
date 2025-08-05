@@ -98,4 +98,6 @@ const AssetItem = React.memo(({
     );
 });
 
+AssetItem.displayName = 'AssetItem';
+
 export default AssetItem; 

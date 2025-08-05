@@ -15,25 +15,26 @@ export interface Asset {
     media_type?: 'photo' | 'video'; // For database compatibility
     mediaSubtypes: string[];
     media_subtype?: string; // For database compatibility
-    
+    order_index: number; // For database compatibility
+
     // Dimensions and duration
     width: number;
     height: number;
-    duration: number;
+    duration?: number;
     
     // Timestamps
-    creationTime: number;
-    modificationTime: number;
+    creationTime?: number;
+    modificationTime?: number;
     created_at?: string; // For database compatibility
     updated_at?: string; // For database compatibility
     
     // Additional properties
     orientation?: number;
-    isFavorite: boolean;
-    isHidden: boolean;
+    isFavorite?: boolean;
+    isHidden?: boolean;
     caption?: string;
     album_name?: string;
-    
+
     // Relationships
     pairedVideoAsset?: Asset | null;
     

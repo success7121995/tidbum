@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import React, { useRef } from "react";
 import { ActionSheetIOS, Animated, Image, Text, TouchableOpacity, View } from "react-native";
 import { useSetting } from "../constant/SettingProvider";
 import { deleteAlbum } from "../lib/db";
@@ -11,12 +12,12 @@ interface AlbumCardProps {
     onPress?: (album: Album) => void;
 }
 
-const AlbumCard = ({ album, onDelete, onPress }: AlbumCardProps) => {
+const AlbumCard = React.memo(({ album, onDelete, onPress }: AlbumCardProps) => {
     // ============================================================================
     // STATE
     // ============================================================================
-    const fadeAnim = new Animated.Value(1);
-    const scaleAnim = new Animated.Value(1);
+    const fadeAnim = useRef(new Animated.Value(1)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
     const { language, theme } = useSetting();
     const text = getLanguageText(language as Language);
 
@@ -99,9 +100,9 @@ const AlbumCard = ({ album, onDelete, onPress }: AlbumCardProps) => {
                 onPress={handleAlbumPress}
                 activeOpacity={0.8}
             >
-                {album.cover_asset_id ? (
+                {album.cover_uri ? (
                     <Image 
-                        source={{ uri: album.cover_asset_id }}
+                        source={{ uri: album.cover_uri }}
                         className="w-full h-full"
                         resizeMode="cover"
                     />
@@ -131,6 +132,8 @@ const AlbumCard = ({ album, onDelete, onPress }: AlbumCardProps) => {
             </View>
         </Animated.View>
     );
-};
+});
+
+AlbumCard.displayName = 'AlbumCard';
 
 export default AlbumCard;   
