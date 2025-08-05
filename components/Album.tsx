@@ -1,4 +1,4 @@
-import { deleteSelectedAssets as deleteSelectedAssetsFromDb, getAlbumById, swapAlbumOrder, swapAssetOrder } from "@/lib/db";
+import { deleteSelectedAssets as deleteSelectedAssetsFromDb, swapAlbumOrder, swapAssetOrder } from "@/lib/db";
 import { Asset } from "@/types/asset";
 import Feather from '@expo/vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -123,8 +123,6 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const [draggedItem, setDraggedItem] = useState<{ type: 'asset' | 'album', index: number } | null>(null);
     const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
     
-    const needsParentUpdate = useRef(false);
-    const pendingAssetsUpdate = useRef<Asset[] | null>(null);
     const prevAssetsRef = useRef<Asset[]>([]);
 
     // ============================================================================
@@ -304,7 +302,7 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         }
     }, [isExpanded, album.album_id]);
 
-    /**
+        /**
      * Reorder the assets in the grid
      * @param fromIndex - The index of the asset to move
      * @param toIndex - The index to move the asset to
@@ -312,34 +310,29 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const reorderAssets = useCallback(async (fromIndex: number, toIndex: number) => {
         if (fromIndex === toIndex) return;  
 
+        // Get the current assets to swap BEFORE updating state
+        const currentAssets = assets;
+        const assetFrom = currentAssets[fromIndex];
+        const assetTo = currentAssets[toIndex];
+
         setAssets(prevAssets => {
             const newAssets = [...prevAssets];
-            
-            // Get the assets to swap from the original array BEFORE swapping
-            const assetFrom = prevAssets[fromIndex];
-            const assetTo = prevAssets[toIndex];
             
             // Swap the assets at the two positions
             const temp = newAssets[fromIndex];
             newAssets[fromIndex] = newAssets[toIndex];
             newAssets[toIndex] = temp;
-
-            pendingAssetsUpdate.current = newAssets;
-            needsParentUpdate.current = true;
-
-            // Use swapAssetOrder to correctly exchange the order indices
-            swapAssetOrder(assetFrom.id, assetTo.id).then(() => {
-                // Refresh the album data to ensure UI reflects the changes
-                refreshAlbumData();
-            }).catch((error: any) => {
-                console.error('Error updating asset order in database:', error);
-            });
             
             return newAssets;
         });
 
-
-    }, []);
+        // Update database in the background without affecting UI
+        try {
+            await swapAssetOrder(assetFrom.id, assetTo.id);
+        } catch (error) {
+            console.error('Error updating asset order in database:', error);
+        }
+    }, [assets]);
 
     /**
      * Reorder the albums in the sub-albums section
@@ -349,29 +342,29 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     const reorderAlbums = useCallback(async (fromIndex: number, toIndex: number) => {
         if (fromIndex === toIndex) return;
         
+        // Get the current albums to swap BEFORE updating state
+        const currentAlbums = subAlbums;
+        const albumFrom = currentAlbums[fromIndex];
+        const albumTo = currentAlbums[toIndex];
+
         setSubAlbums(prevAlbums => {
             const newAlbums = [...prevAlbums];
-            
-            // Get the albums to swap from the original array BEFORE swapping
-            const albumFrom = prevAlbums[fromIndex];
-            const albumTo = prevAlbums[toIndex];
             
             // Swap the albums at the two positions
             const temp = newAlbums[fromIndex];
             newAlbums[fromIndex] = newAlbums[toIndex];
             newAlbums[toIndex] = temp;
             
-            // Use swapAlbumOrder to correctly exchange the order indices
-            swapAlbumOrder(albumFrom.album_id!, albumTo.album_id!).then(() => {
-                // Refresh the album data to ensure UI reflects the changes
-                refreshAlbumData();
-            }).catch((error: any) => {
-                console.error('Error updating album order in database:', error);
-            });
-            
             return newAlbums;
         });
-    }, []);
+
+        // Update database in the background without affecting UI
+        try {
+            await swapAlbumOrder(albumFrom.album_id!, albumTo.album_id!);
+        } catch (error) {
+            console.error('Error updating album order in database:', error);
+        }
+    }, [subAlbums]);
 
     // ============================================================================
     // GESTURE HANDLERS
@@ -634,17 +627,6 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     }, [album.album_id, album.assets, album.subAlbums, selectedAssetIds, exitSelectionMode]);
     
     useEffect(() => {
-        if (needsParentUpdate.current && pendingAssetsUpdate.current) {
-            // Use setTimeout to avoid calling onAssetsUpdate during render
-            setTimeout(() => {
-                onAssetsUpdate?.(pendingAssetsUpdate.current!);
-            }, 0);
-            needsParentUpdate.current = false;
-            pendingAssetsUpdate.current = null;
-        }
-    });
-    
-    useEffect(() => {
         const loadExpandState = async () => {
             try {
                 const key = `album_expand_${album.album_id}`;
@@ -675,23 +657,6 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     // ============================================================================
     // HELPER FUNCTIONS
     // ============================================================================
-
-    // Refresh album data
-    const refreshAlbumData = useCallback(async () => {
-        if (currentAlbum.album_id) {
-            try {
-                const updatedAlbum = await getAlbumById(currentAlbum.album_id);
-                if (updatedAlbum) {
-                    setCurrentAlbum(updatedAlbum);
-                    setAssets(updatedAlbum.assets || []);
-                    setSubAlbums(updatedAlbum.subAlbums || []);
-                    onAlbumUpdate?.(updatedAlbum);
-                }
-            } catch (error) {
-                console.error('Error refreshing album data:', error);
-            }
-        }
-    }, [currentAlbum.album_id, onAlbumUpdate]);
 
     // ============================================================================
     // RENDER

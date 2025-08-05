@@ -115,7 +115,6 @@ const DirectoryNavigationProvider = ({ children }: { children: React.ReactNode }
     // Refresh album data when assets are moved
     const refreshAlbumData = useCallback(async (affectedAlbumIds: string[]) => {
         try {
-            console.log('Refreshing album data for affected albums:', affectedAlbumIds);
             
             // Always reload current directory data to ensure fresh data
             if (currentDirectoryId) {
@@ -161,7 +160,7 @@ const DirectoryNavigationProvider = ({ children }: { children: React.ReactNode }
                 setParentAlbum(updatedParent);
             }
             
-            console.log('Album data refresh completed');
+
         } catch (error) {
             console.error('Error refreshing album data:', error);
         }

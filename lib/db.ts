@@ -1472,7 +1472,7 @@ export const swapAlbumOrder = async (albumId1: string, albumId2: string): Promis
             console.error('Error rolling back transaction:', rollbackError);
         }
         
-        console.error('❌ Error swapping album order:', error);
+        console.error('Error swapping album order:', error);
         throw error;
     }
 };
