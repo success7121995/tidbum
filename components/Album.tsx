@@ -44,14 +44,25 @@ interface SubAlbumItemProps {
     isCurrentlyDragged: boolean;
     isDropTarget: boolean;
     onAlbumDelete: (albumId: string) => void;
+    onAlbumLongPress: (album: Album) => void;
 }
 
+/**
+ * Sub-album item component
+ * @param subAlbum - The sub-album to render
+ * @param index - The index of the sub-album
+ * @param isCurrentlyDragged - Whether the sub-album is currently being dragged
+ * @param isDropTarget - Whether the sub-album is the target of a drop
+ * @param onAlbumDelete - The function to call when the sub-album is deleted
+ * @param onAlbumLongPress - The function to call when the sub-album is long pressed
+ */
 const SubAlbumItem = React.memo(({ 
     subAlbum, 
     index, 
     isCurrentlyDragged, 
     isDropTarget, 
-    onAlbumDelete 
+    onAlbumDelete,
+    onAlbumLongPress
 }: SubAlbumItemProps) => {
     return (
         <View className="px-1" style={{ width: isTablet ? 140 : 120 }}>
@@ -65,6 +76,7 @@ const SubAlbumItem = React.memo(({
                     <AlbumCard
                         album={subAlbum}
                         onDelete={onAlbumDelete}
+                        onLongPress={onAlbumLongPress}
                         onPress={(album) => {
                             // Navigate to the album
                             try {
@@ -75,14 +87,6 @@ const SubAlbumItem = React.memo(({
                             }
                         }}
                     />
-
-                    {isDropTarget && (
-                        <View className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-lg items-center justify-center">
-                            <View className="bg-blue-500 rounded-full p-2">
-                                <Feather name="arrow-down" size={16} color="white" />
-                            </View>
-                        </View>
-                    )}
 
                     {isCurrentlyDragged && (
                         <View className="absolute bottom-2 left-2">
@@ -240,6 +244,21 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     };
 
     /**
+     * Handle long press on a sub-album to enter drag mode
+     * @param album - The album that was long pressed
+     */
+    const onAlbumLongPress = useCallback((album: Album) => {
+        // Find the index of the album in the subAlbums array
+        const albumIndex = subAlbums.findIndex(a => a.album_id === album.album_id);
+        if (albumIndex !== -1) {
+            // Start drag mode for this album
+            setDraggedItem({ type: 'album', index: albumIndex });
+            draggedItemType.value = 'album';
+            draggedItemIndex.value = albumIndex;
+        }
+    }, [subAlbums]);
+
+    /**
      * Handle opening the albums modal
      */
     const handleOpenAlbumsModal = useCallback(() => {
@@ -369,10 +388,11 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
     // ============================================================================
     // GESTURE HANDLERS
     // ============================================================================
+
     /**
-     * The gesture handler for the grid
+     * The gesture handler for the sub-albums section
      */
-    const gestureHandler = useMemo(() => {
+    const subAlbumsGestureHandler = useMemo(() => {
         const gestureConfig = {
             numColumns,
             itemSize,
@@ -396,27 +416,101 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
             isSelectionMode,
             {
                 onDragStart: (type: 'asset' | 'album', index: number) => {
-                    draggedItemType.value = type;
-                    draggedItemIndex.value = index;
-                    setDraggedItem({ type, index });
-                    setDropTargetIndex(null);
+                    // Only handle album drags in sub-albums section
+                    if (type === 'album') {
+                        draggedItemType.value = type;
+                        draggedItemIndex.value = index;
+                        setDraggedItem({ type, index });
+                        setDropTargetIndex(null);
+                    }
                 },
                 onDragUpdate: (type: 'asset' | 'album', index: number | null) => {
-                    setDropTargetIndex(index);
+                    // Only handle album drags in sub-albums section
+                    if (type === 'album') {
+                        setDropTargetIndex(index);
+                    }
                 },
                 onDragEnd: (fromIndex: number, toIndex: number, type: 'asset' | 'album') => {
-                    
-                    // Reset drag state first
-                    draggedItemType.value = null;
-                    draggedItemIndex.value = -1;
-                    setDraggedItem(null);
-                    setDropTargetIndex(null);
-                    
-                    // Then perform reordering
-                    if (fromIndex !== toIndex) {
-                        if (type === 'album') {
+                    // Only handle album drags in sub-albums section
+                    if (type === 'album') {
+                        // Reset drag state first
+                        draggedItemType.value = null;
+                        draggedItemIndex.value = -1;
+                        setDraggedItem(null);
+                        setDropTargetIndex(null);
+                        
+                        // Then perform reordering
+                        if (fromIndex !== toIndex) {
                             reorderAlbums(fromIndex, toIndex);
-                        } else {
+                        }
+                    }
+                },
+            }
+        );
+    }, [
+        isSelectionMode, 
+        subAlbums.length, 
+        assets.length, 
+        isExpanded, 
+        scrollOffsetX, 
+        scrollOffsetY, 
+        createDragAndDropGesture, 
+        reorderAlbums
+    ]);
+
+    /**
+     * The gesture handler for the asset grid
+     */
+    const assetGridGestureHandler = useMemo(() => {
+
+        const gestureConfig = {
+            numColumns,
+            itemSize,
+            gap,
+            offsetY: insets.top + (isExpanded ? -30 : -30),
+            offsetX: gap,
+            scrollOffsetX,
+            scrollOffsetY,
+            componentType: 'asset' as const,
+            isExpanded,
+            screenWidth,
+            albumSectionHeight: subAlbums.length > 0 ? (isExpanded ? 200 : 100) : 0,
+            albumItemHeight: 120,
+            albumItemsPerRow: 3,
+        };
+
+        return createDragAndDropGesture(
+            gestureConfig,
+            assets,
+            subAlbums,
+            isSelectionMode,
+            {
+                onDragStart: (type: 'asset' | 'album', index: number) => {
+                    // Only handle asset drags in asset grid
+                    if (type === 'asset') {
+                        draggedItemType.value = type;
+                        draggedItemIndex.value = index;
+                        setDraggedItem({ type, index });
+                        setDropTargetIndex(null);
+                    }
+                },
+                onDragUpdate: (type: 'asset' | 'album', index: number | null) => {
+                    // Only handle asset drags in asset grid
+                    if (type === 'asset') {
+                        setDropTargetIndex(index);
+                    }
+                },
+                onDragEnd: (fromIndex: number, toIndex: number, type: 'asset' | 'album') => {
+                    // Only handle asset drags in asset grid
+                    if (type === 'asset') {
+                        // Reset drag state first
+                        draggedItemType.value = null;
+                        draggedItemIndex.value = -1;
+                        setDraggedItem(null);
+                        setDropTargetIndex(null);
+                        
+                        // Then perform reordering
+                        if (fromIndex !== toIndex) {
                             reorderAssets(fromIndex, toIndex);
                         }
                     }
@@ -431,7 +525,6 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         scrollOffsetX, 
         scrollOffsetY, 
         createDragAndDropGesture, 
-        reorderAlbums, 
         reorderAssets
     ]);
 
@@ -575,9 +668,10 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                 isCurrentlyDragged={isCurrentlyDragged}
                 isDropTarget={isDropTarget}
                 onAlbumDelete={handleAlbumDelete}
+                onAlbumLongPress={onAlbumLongPress}
             />
         );
-    }, [draggedItem, dropTargetIndex, handleAlbumDelete]);
+    }, [draggedItem, dropTargetIndex, handleAlbumDelete, onAlbumLongPress]);
 
     // ============================================================================
     // EFFECTS
@@ -646,17 +740,6 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
         draggedItemType.value = null;
         draggedItemIndex.value = -1;
     }, [album.album_id]);
-    
-    useEffect(() => {
-        return () => {
-            draggedItemType.value = null;
-            draggedItemIndex.value = -1;
-        };
-    }, []);
-
-    // ============================================================================
-    // HELPER FUNCTIONS
-    // ============================================================================
 
     // ============================================================================
     // RENDER
@@ -731,38 +814,46 @@ const AlbumWithAssets = ({ album, onAssetPress, onSelectionChange, onAssetsUpdat
                     />
                 </Animated.View>
             ) : (
-                <GestureDetector gesture={gestureHandler}>
-                    <Animated.View className="flex-1 pb-5">
-                        <SubAlbumsSection 
-                            subAlbums={subAlbums}
-                            isExpanded={isExpanded}
-                            onToggleExpand={handleSubAlbumExpandCollapse}
-                            onAlbumDelete={handleAlbumDelete}
-                            draggedItem={draggedItem}
-                            dropTargetIndex={dropTargetIndex}
-                            renderSubAlbumItem={renderSubAlbumItem}
-                            theme={theme}
-                        />
-                        
-                        <AssetGrid 
-                            assets={assets}
-                            renderAssetItem={renderAssetItem}
-                            keyExtractor={keyExtractor}
-                            onScroll={handleScroll}
-                            onScrollBeginDrag={() => setIsScrolling(true)}
-                            onScrollEndDrag={() => setIsScrolling(false)}
-                            onMomentumScrollBegin={() => setIsScrolling(true)}
-                            onMomentumScrollEnd={() => setIsScrolling(false)}
-                            swipeSelectionPanResponder={null}
-                            text={text}
-                            theme={theme}
-                            isSelectionMode={false}
-                            numColumns={numColumns}
-                            gap={gap}
-                            draggedItem={draggedItem}
-                        />
-                    </Animated.View>
-                </GestureDetector>
+                <Animated.View className="flex-1 pb-5">
+                    {/* Sub Albums Section with its own GestureDetector */}
+                    <GestureDetector gesture={subAlbumsGestureHandler}>
+                        <Animated.View>
+                            <SubAlbumsSection 
+                                subAlbums={subAlbums}
+                                isExpanded={isExpanded}
+                                onToggleExpand={handleSubAlbumExpandCollapse}
+                                onAlbumDelete={handleAlbumDelete}
+                                draggedItem={draggedItem}
+                                dropTargetIndex={dropTargetIndex}
+                                renderSubAlbumItem={renderSubAlbumItem}
+                                theme={theme}
+                            />
+                        </Animated.View>
+                    </GestureDetector>
+                    
+                    {/* Asset Grid with its own GestureDetector */}
+                    <GestureDetector gesture={assetGridGestureHandler}>
+                        <Animated.View className="flex-1">
+                            <AssetGrid 
+                                assets={assets}
+                                renderAssetItem={renderAssetItem}
+                                keyExtractor={keyExtractor}
+                                onScroll={handleScroll}
+                                onScrollBeginDrag={() => setIsScrolling(true)}
+                                onScrollEndDrag={() => setIsScrolling(false)}
+                                onMomentumScrollBegin={() => setIsScrolling(true)}
+                                onMomentumScrollEnd={() => setIsScrolling(false)}
+                                swipeSelectionPanResponder={null}
+                                text={text}
+                                theme={theme}
+                                isSelectionMode={false}
+                                numColumns={numColumns}
+                                gap={gap}
+                                draggedItem={draggedItem}
+                            />
+                        </Animated.View>
+                    </GestureDetector>
+                </Animated.View>
             )}
         </>
     );

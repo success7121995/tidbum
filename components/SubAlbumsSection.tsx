@@ -57,6 +57,7 @@ const SubAlbumsSection = React.memo(({
                     />
                 </TouchableOpacity>
             </View>
+
             {isExpanded && (
                 <View className="relative">
                     <FlatList
@@ -82,15 +83,7 @@ const SubAlbumsSection = React.memo(({
                         // Disable scroll when dragging
                         scrollEnabled={!draggedItem || draggedItem.type !== 'album'}
                     />
-                    
-                    {/* Debug overlay for drag state */}
-                    {__DEV__ && draggedItem && draggedItem.type === 'album' && (
-                        <View className="absolute inset-0 bg-red-500 bg-opacity-20 pointer-events-none">
-                            <Text className="text-white text-xs p-2">
-                                Dragging album {draggedItem.index}
-                            </Text>
-                        </View>
-                    )}
+            
                 </View>
             )}
         </View>

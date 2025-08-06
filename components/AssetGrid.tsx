@@ -21,6 +21,8 @@ interface AssetGridProps {
     emptyMessage?: string;
     emptySubMessage?: string;
     draggedItem?: { type: 'asset' | 'album', index: number } | null;
+    isSwapMode?: boolean;
+    onSwapModeChange?: (isSwapMode: boolean) => void;
 }
 
 const AssetGrid = ({ 
@@ -40,7 +42,9 @@ const AssetGrid = ({
     gap,
     emptyMessage = text.noMediaYet,
     emptySubMessage = text.tapToAdd,
-    draggedItem
+    draggedItem,
+    onSwapModeChange,
+    isSwapMode = false,
 }: AssetGridProps) => {
     const flatListRef = useRef<FlatList>(null);
 
@@ -60,7 +64,8 @@ const AssetGrid = ({
 
     return (
         <>
-            <View className="px-4 mb-3">
+            <View className="px-4 mb-3 flex-row justify-between items-center">
+
                 <Text className={`${theme === 'dark' ? 'text-dark-text-primary' : 'text-light-text-primary'} font-medium text-lg`}>
                     {text.media} ({assets.length})
                 </Text>

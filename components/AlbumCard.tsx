@@ -10,9 +10,10 @@ interface AlbumCardProps {
     album: Album;
     onDelete?: (albumId: string) => void;
     onPress?: (album: Album) => void;
+    onLongPress?: (album: Album) => void;
 }
 
-const AlbumCard = React.memo(({ album, onDelete, onPress }: AlbumCardProps) => {
+const AlbumCard = React.memo(({ album, onDelete, onPress, onLongPress }: AlbumCardProps) => {
     // ============================================================================
     // STATE
     // ============================================================================
@@ -98,6 +99,7 @@ const AlbumCard = React.memo(({ album, onDelete, onPress }: AlbumCardProps) => {
             <TouchableOpacity 
                 className={`aspect-square ${theme === 'dark' ? 'bg-dark-card' : 'bg-light-card'} relative rounded-xl rounded-br-none overflow-hidden`}
                 onPress={handleAlbumPress}
+                onLongPress={() => onLongPress?.(album)}
                 activeOpacity={0.8}
             >
                 {album.cover_uri ? (

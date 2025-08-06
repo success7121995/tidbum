@@ -26,7 +26,7 @@ interface GestureConfig {
     scrollOffsetY: number;    // Current vertical scroll position
     
     // Component type identification
-    componentType: 'album' | 'mediaLibrary' | 'subAlbum' | 'slider';
+    componentType: 'album' | 'asset';
     isExpanded?: boolean;     // For album component expansion state
     
     // Drag and drop specific configuration
@@ -236,6 +236,9 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
         // Calculate adjusted position based on component type and offsets
         let adjustedX = position.x - gap + scrollOffsetX - offsetX;
         let adjustedY = position.y - offsetY + scrollOffsetY;
+
+        console.log('adjustedX', adjustedX);
+        console.log('adjustedY', adjustedY);
         
         // Component-specific adjustments
         if (config.componentType === 'album' && config.isExpanded) {
@@ -264,10 +267,15 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
      */
     const getGridPositionWorklet = useCallback((x: number, y: number, config: GestureConfig, itemListLength: number): number | null => {
         'worklet';
-        const { numColumns, itemSize, gap, scrollOffsetX, scrollOffsetY, isExpanded } = config;
+        const { numColumns, itemSize, gap, offsetY, offsetX, scrollOffsetX, scrollOffsetY, componentType, isExpanded } = config;
         
-        const adjustedX = x - gap + scrollOffsetX;
-        let adjustedY = y + (isExpanded ? -70 : 120) + scrollOffsetY;
+        const adjustedX = x - gap + scrollOffsetX - offsetX;
+        let adjustedY = y - offsetY + scrollOffsetY;
+        
+        // Component-specific adjustments
+        if (componentType === 'album' && isExpanded) {
+            adjustedY -= 70; // Additional offset for expanded album
+        }
         
         if (adjustedX < 0 || adjustedY < 0) return null;
 
@@ -656,8 +664,8 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                 const albumSectionHeight = config.albumSectionHeight || (subAlbums.length > 0 ? 100 : 0);
                 const isInAlbumSection = touchY < albumSectionHeight;
                 
-                if (isInAlbumSection && subAlbums.length > 0) {
-                    // Handle album drag
+                if (isInAlbumSection && subAlbums.length > 0 && config.componentType === 'album') {
+                    // Handle album drag only for album component type
                     const albumItemHeight = config.albumItemHeight || 120;
                     const albumItemsPerRow = config.albumItemsPerRow || 3;
                     const screenWidth = config.screenWidth || 375;
@@ -669,9 +677,9 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                         dragStartType.value = 'album';
                         runOnJS(callbacks.onDragStart)('album', albumIndex);
                     }
-                } else {
-                    // Handle asset drag
-                    const assetIndex = getGridPositionWorklet(touchX, touchY - 200, config, assets.length);
+                } else if (config.componentType === 'asset') {
+                    // Handle asset drag for asset component type
+                    const assetIndex = getGridPositionWorklet(touchX, touchY, config, assets.length);
                     
                     if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length) {
                         dragStartIndex.value = assetIndex;
@@ -693,8 +701,8 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                 const albumSectionHeight = config.albumSectionHeight || (subAlbums.length > 0 ? 100 : 0);
                 const isInAlbumSection = currentY < albumSectionHeight;
                 
-                if (isInAlbumSection && subAlbums.length > 0) {
-                    // Update album drop target
+                if (isInAlbumSection && subAlbums.length > 0 && config.componentType === 'album') {
+                    // Update album drop target only for album component type
                     const albumItemHeight = config.albumItemHeight || 120;
                     const albumItemsPerRow = config.albumItemsPerRow || 3;
                     const screenWidth = config.screenWidth || 375;
@@ -708,9 +716,9 @@ const GestureProvider = ({ children }: { children: React.ReactNode }) => {
                         dragLastDropTarget.value = -1;
                         runOnJS(callbacks.onDragUpdate)('album', null);
                     }
-                } else {
-                    // Update asset drop target
-                    const assetIndex = getGridPositionWorklet(currentX, currentY - 200, config, assets.length);
+                } else if (config.componentType === 'asset') {
+                    // Update asset drop target for asset component type
+                    const assetIndex = getGridPositionWorklet(currentX, currentY, config, assets.length);
                     
                     if (assetIndex !== null && assetIndex >= 0 && assetIndex < assets.length) {
                         dragLastDropTarget.value = assetIndex;
